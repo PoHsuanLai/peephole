@@ -1,8 +1,8 @@
 //! Builders shared by the modules.
 
 use peephole_core::{
-    CgroupPath, DropIns, Exe, ExePath, Facts, FileTrust, Fragment, Pid, Pin, SandboxFacts, Table,
-    Transient, Uid, UnitFacts, UnitName, Writer,
+    CgroupPath, DropIns, Exe, ExePath, Facts, FileTrust, Fragment, Loader, Pid, Pin, SandboxFacts,
+    Table, Transient, Uid, UnitFacts, UnitName, Writer,
 };
 use std::path::PathBuf;
 
@@ -74,5 +74,6 @@ pub fn sill_unit() -> UnitFacts {
         drop_ins: DropIns::None,
         transient: Transient::No,
         exec: Some(exe_path("/usr/bin/sill")),
+        loader: Loader::Cleared,
     }
 }

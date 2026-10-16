@@ -22,8 +22,8 @@ pub mod roles;
 pub use cgroup::{CgroupPath, escape_unit, flatpak_scope_in, scope_app, unescape_unit};
 pub use error::{IdError, Refused, RowFault, TableError};
 pub use facts::{
-    DropIns, Engine, Exe, Facts, FileTrust, Fragment, Pin, PinNeed, SandboxFacts, Transient,
-    UnitFacts, Writer,
+    DropIns, Engine, Exe, Facts, FileTrust, Fragment, LOADER_VARIABLES, Loader, Pin, PinNeed,
+    SandboxFacts, Transient, UnitFacts, Writer,
 };
 pub use ids::{AppKey, ExePath, ExePattern, Pid, RoleName, Uid, UnitName};
 pub use judge::judge;

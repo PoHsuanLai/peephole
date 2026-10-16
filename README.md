@@ -32,7 +32,9 @@ A caller is first held by a pidfd, and everything read from `/proc/<pid>` is rea
 
 The scope name of an application launcher is only ever a claim, carried for display; it never authorises anything. Roles come from the table and from the code that names the roles it accepts, never from a peer.
 
-What this stops: a same-user process that does not touch the user's systemd configuration or environment cannot pass as `sill.service` (`systemd-run -u`, a moved cgroup, a copied binary, a user-level unit override, a drop-in). What it cannot stop: a same-user attacker who edits `~/.config/systemd/user` or `systemctl --user set-environment LD_PRELOAD=...` and waits for the next start of a trusted service (persistence in the user's own manager; the boundary CASW-05 names). Hardening for our own units: `UnsetEnvironment=LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT` in `sill.service`, `casement.service`, `transom.service`, `palmrest.service` (unit lanes), and a drop-in under the user's directory makes `Full` fail rather than pass.
+What this stops: a same-user process that does not touch the user's systemd configuration or environment cannot pass as `sill.service` (`systemd-run -u`, a moved cgroup, a copied binary, a user-level unit override, a drop-in). What it cannot stop: a same-user attacker who edits `~/.config/systemd/user` or `systemctl --user set-environment LD_PRELOAD=...` and waits for the next start of a trusted service (persistence in the user's own manager; the boundary CASW-05 names). Hardening for our own units: a drop-in under the user's directory makes `Full` fail rather than pass, and so does a unit that does not unset the loader variables.
+
+Our units (`sill.service`, `casement.service`, `transom.service`, `palmrest.service`) carry the `UnsetEnvironment=` line documented on `LOADER_VARIABLES` (the dynamic loader's variables and the library search paths of GLib, GTK, GStreamer, Mesa, EGL, Vulkan and friends), which systemd applies after the manager environment, `Environment=` and `EnvironmentFile=`. A unit without it never proves `Full`.
 
 Other limits, stated rather than hidden:
 

@@ -2,7 +2,7 @@
 
 use crate::common::{facts, in_sill_unit, read, root_only, sill_unit, table, user_writable};
 use peephole_core::{
-    AppKey, DropIns, Engine, Exe, FileTrust, Fragment, Pin, Proof, RoleName, SandboxFacts,
+    AppKey, DropIns, Engine, Exe, FileTrust, Fragment, LOADER_VARIABLES, Loader, Pin, Proof, RoleName, SandboxFacts,
     Standing, Transient, WhyNot, Writer, judge,
 };
 use std::path::PathBuf;
@@ -77,6 +77,48 @@ fn anything_the_manager_cannot_confirm_stops_at_exe() {
         with_unit(|u| u.name = peephole_core::UnitName::new("other.service").expect("a unit")),
         exe
     );
+}
+
+fn unset(names: &[&str]) -> Vec<String> {
+    names.iter().map(|n| (*n).to_owned()).collect()
+}
+
+#[test]
+fn a_unit_proves_full_only_when_it_unsets_every_loader_variable() {
+    let full = service("shell", Proof::Full, Pin::AtConnect);
+    let exe = service("shell", Proof::Exe, Pin::AtConnect);
+    // Every name present, in any order, with extras.
+    let mut all = unset(&LOADER_VARIABLES);
+    all.reverse();
+    all.push("SOMETHING_ELSE".to_owned());
+    assert_eq!(with_unit(|u| u.loader = Loader::from_unset(&all)), full);
+    // Each name missing in turn gives the lower proof and names exactly that variable.
+    for name in LOADER_VARIABLES {
+        let rest: Vec<String> = LOADER_VARIABLES
+            .iter()
+            .filter(|n| **n != name)
+            .map(|n| (*n).to_owned())
+            .collect();
+        let loader = Loader::from_unset(&rest);
+        assert_eq!(loader, Loader::Kept(vec![name.to_owned()]));
+        assert!(loader.reason().expect("a reason").contains(name));
+        assert_eq!(with_unit(|u| u.loader = loader.clone()), exe);
+    }
+    // Nothing unset, or a read that failed: all names are kept.
+    let none = Loader::from_unset(&[]);
+    assert_eq!(none, Loader::unknown());
+    assert_eq!(none, Loader::Kept(unset(&LOADER_VARIABLES)));
+    assert_eq!(with_unit(|u| u.loader = none.clone()), exe);
+    // `LD_PRELOAD=` unsets one assignment, not the variable.
+    assert_ne!(Loader::from_unset(&unset(&["LD_PRELOAD=x"])), Loader::Cleared);
+    assert_eq!(Loader::Cleared.reason(), None);
+}
+
+#[test]
+fn the_loader_variables_are_the_agreed_twenty_two() {
+    assert_eq!(LOADER_VARIABLES.len(), 22);
+    assert_eq!(LOADER_VARIABLES[0], "LD_PRELOAD");
+    assert_eq!(LOADER_VARIABLES[21], "VK_LOADER_LAYERS_ENABLE");
 }
 
 #[test]

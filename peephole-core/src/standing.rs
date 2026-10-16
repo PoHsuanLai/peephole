@@ -14,7 +14,7 @@ pub enum Proof {
     /// The image was read, it is root-owned all the way up and the row's `exe` patterns match it.
     Exe,
     /// `Exe`, and the unit is real: the manager says it is this process's unit, from a root-owned
-    /// fragment with no user-writable drop-in, not transient, and running this program.
+    /// fragment with no user-writable drop-in, not transient, unsetting every loader variable, and running this program.
     Full,
 }
 

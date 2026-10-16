@@ -5,7 +5,8 @@
 use crate::error::UnitError;
 use crate::timeout::bounded;
 use peephole::{ProcFs, dirs_trust, weaker};
-use peephole_core::{DropIns, ExePath, FileTrust, Fragment, Pid, Transient, UnitFacts, UnitName};
+use peephole_core::{DropIns, ExePath, FileTrust, Fragment, Loader, Pid, Transient, UnitFacts, UnitName,
+};
 use std::collections::HashMap;
 use std::future::Future;
 use std::path::{Path, PathBuf};
@@ -144,6 +145,11 @@ impl<P: ProcFs> UnitSource for ManagerLink<P> {
                 _ => Transient::Yes,
             },
             exec: first_exec(&service),
+            // A manager that does not say unsets nothing.
+            loader: match strings(&service, "UnsetEnvironment") {
+                Some(unset) => Loader::from_unset(&unset),
+                None => Loader::unknown(),
+            },
         })
     }
 }
@@ -170,6 +176,14 @@ fn texts(map: &HashMap<String, OwnedValue>, key: &str) -> Vec<String> {
             })
             .collect(),
         _ => Vec::new(),
+    }
+}
+
+/// An `as` property; `None` when it is absent or not an array of strings.
+fn strings(map: &HashMap<String, OwnedValue>, key: &str) -> Option<Vec<String>> {
+    match value(map, key)? {
+        Value::Array(_) => Some(texts(map, key)),
+        _ => None,
     }
 }
 
