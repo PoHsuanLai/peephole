@@ -147,6 +147,14 @@ impl<P: ProcFs> Prober<P> {
         match self.text(budget, &dir.join("root").join(".flatpak-info"), what) {
             Ok(text) => parse_flatpak_info(&text).ok_or(ProbeError::Malformed { what }),
             Err(ProbeError::PeerGone) => Ok(SandboxFacts::Native),
+            // Another user's `<pid>/root` is closed to a reader without privilege, exactly as its
+            // `exe` is: nothing is known of a sandbox, the image reads as hidden, and only the
+            // cgroup can speak (a Flatpak scope there still disagrees with "native").
+            Err(ProbeError::Unreadable { source, .. })
+                if source.kind() == io::ErrorKind::PermissionDenied =>
+            {
+                Ok(SandboxFacts::Native)
+            }
             Err(other) => Err(other),
         }
     }

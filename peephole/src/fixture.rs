@@ -138,6 +138,13 @@ impl FixtureProc {
             }
             FixtureImage::Hidden => {
                 self.nodes.insert(exe, Node::Denied);
+                // As the kernel does for another user's process: its root is closed too.
+                if process.flatpak_info.is_none() {
+                    self.nodes.insert(
+                        PathBuf::from(format!("{base}/root/.flatpak-info")),
+                        Node::Denied,
+                    );
+                }
             }
         }
         self
