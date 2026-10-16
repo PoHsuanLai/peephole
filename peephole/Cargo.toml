@@ -1,0 +1,31 @@
+[package]
+name = "peephole"
+description = "Which program is calling: a pinned process (pidfd), the facts /proc states about it, and the judgement against a root-owned table."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+peephole-core = { workspace = true }
+rustix = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+# Test seams: a pinned process that is only a claim (`Pinned::introduced`) and ready-made
+# standings. A shipped binary never enables it; the desktop gate greps `cargo tree -e features`.
+fake = []
+# Forwarded to peephole-core.
+desktop = ["peephole-core/desktop"]
+
+[lints]
+workspace = true
+
+# One integration binary, built only with `fake`: every test pins a process that is only a
+# claim (`Pinned::introduced`), which exists only under that feature. The gate runs --all-features.
+[[test]]
+name = "it"
+path = "tests/it/main.rs"
+required-features = ["fake"]
