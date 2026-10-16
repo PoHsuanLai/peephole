@@ -70,6 +70,21 @@ pub enum LoadError {
         /// The file.
         path: String,
     },
+    /// Only with feature `dev-rows`: a developer rows file that is a link or not a plain file.
+    #[cfg(feature = "dev-rows")]
+    #[error("{path}: not a plain file")]
+    NotAFile {
+        /// The file.
+        path: String,
+    },
+    /// Only with feature `dev-rows`: a developer rows file that is not the person's own, or that
+    /// group or others can write.
+    #[cfg(feature = "dev-rows")]
+    #[error("{path}: not the person's own file, or others can write it")]
+    NotTheirs {
+        /// The file.
+        path: String,
+    },
     /// A file is not a table.
     #[error("{path}: {source}")]
     Table {

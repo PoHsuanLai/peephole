@@ -59,7 +59,7 @@ impl TableFiles {
     }
 }
 
-fn unreadable(path: &Path, source: io::Error) -> LoadError {
+pub(crate) fn unreadable(path: &Path, source: io::Error) -> LoadError {
     LoadError::Unreadable {
         path: path.display().to_string(),
         source,
@@ -74,17 +74,22 @@ fn read_table<P: ProcFs>(fs: &P, path: &Path) -> Result<Table, LoadError> {
             path: path.display().to_string(),
         });
     }
+    let text = read_text(fs, path)?;
+    Table::from_toml(&text).map_err(|source| LoadError::Table {
+        path: path.display().to_string(),
+        source,
+    })
+}
+
+/// The text of the table file `path`, within [`TABLE_FILE_CAP`] and UTF-8.
+pub(crate) fn read_text<P: ProcFs>(fs: &P, path: &Path) -> Result<String, LoadError> {
     let bytes = fs
         .read_file_capped(path, TABLE_FILE_CAP)
         .map_err(|e| unreadable(path, e))?;
-    let text = String::from_utf8(bytes).map_err(|_| {
+    String::from_utf8(bytes).map_err(|_| {
         unreadable(
             path,
             io::Error::new(io::ErrorKind::InvalidData, "not UTF-8"),
         )
-    })?;
-    Table::from_toml(&text).map_err(|source| LoadError::Table {
-        path: path.display().to_string(),
-        source,
     })
 }

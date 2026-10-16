@@ -1,8 +1,12 @@
 //! A tree standing for `/proc` and for the file system, for tests: files with owners, links,
 //! directories, and a builder for a whole fake process.
 
+#[cfg(feature = "dev-rows")]
+use crate::devfile::{NodeInfo, NodeKind};
 use crate::procfs::ProcFs;
 use peephole_core::{FileTrust, Pid};
+#[cfg(feature = "dev-rows")]
+use peephole_core::{Uid, Writer};
 use std::collections::BTreeMap;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -84,6 +88,19 @@ impl FixtureProc {
             Node::File {
                 bytes: bytes.into(),
                 trust,
+            },
+        );
+        self
+    }
+
+    /// A link at `abs` pointing at `target`.
+    pub fn link(mut self, abs: &str, target: &str) -> FixtureProc {
+        self = self.ensure_dirs(abs);
+        self.nodes.insert(
+            PathBuf::from(abs),
+            Node::Link {
+                target: PathBuf::from(target),
+                followed: None,
             },
         );
         self
@@ -233,4 +250,26 @@ impl ProcFs for FixtureProc {
             _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
         }
     }
+
+    #[cfg(feature = "dev-rows")]
+    fn info_of(&self, abs: &Path) -> io::Result<NodeInfo> {
+        match self.node(abs)? {
+            Node::File { trust, .. } => Ok(info_of_trust(NodeKind::File, *trust)),
+            Node::Dir { trust } => Ok(info_of_trust(NodeKind::Other, *trust)),
+            Node::Link { .. } => Ok(info_of_trust(NodeKind::Link, FileTrust::RootOnly)),
+            Node::Denied => Err(io::Error::from(io::ErrorKind::PermissionDenied)),
+        }
+    }
+}
+
+/// The owner and mode a fixture node of the given trust stands for.
+#[cfg(feature = "dev-rows")]
+fn info_of_trust(kind: NodeKind, trust: FileTrust) -> NodeInfo {
+    let (owner, mode) = match trust {
+        FileTrust::Writable(Writer::Owner(uid)) => (uid, 0o600),
+        FileTrust::Writable(Writer::Group) => (Uid::ROOT, 0o664),
+        FileTrust::Writable(Writer::Other) => (Uid::ROOT, 0o666),
+        _ => (Uid::ROOT, 0o644),
+    };
+    NodeInfo { kind, owner, mode }
 }

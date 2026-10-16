@@ -2,6 +2,7 @@
 
 mod cgroup;
 mod common;
+mod dev;
 mod ids;
 mod judge;
 mod procinfo;

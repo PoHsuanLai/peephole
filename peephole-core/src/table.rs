@@ -26,9 +26,25 @@ pub struct Row {
     pub role: RoleName,
     /// A label for logs.
     pub name: Option<String>,
+    /// Where the row came from. Only with feature `dev-rows`; without it every row is shipped.
+    #[cfg(feature = "dev-rows")]
+    pub origin: crate::dev::RowOrigin,
 }
 
 impl Row {
+    /// Whether this row can give a real proof (`Cgroup`, `Exe` or `Full`): always, except that a
+    /// developer row (feature `dev-rows`) never can.
+    #[cfg(feature = "dev-rows")]
+    pub(crate) fn proves(&self) -> bool {
+        self.origin == crate::dev::RowOrigin::Shipped
+    }
+
+    /// Whether this row can give a real proof: every row of a build without `dev-rows`.
+    #[cfg(not(feature = "dev-rows"))]
+    pub(crate) fn proves(&self) -> bool {
+        true
+    }
+
     /// Whether the image `path` is one of this row's.
     pub fn matches_image(&self, path: &ExePath) -> bool {
         self.exe.iter().any(|pattern| pattern.matches(path))
@@ -76,6 +92,8 @@ impl RawRow {
             exe,
             role: RoleName::new(&self.role)?,
             name: self.name.clone(),
+            #[cfg(feature = "dev-rows")]
+            origin: crate::dev::RowOrigin::Shipped,
         })
     }
 }
@@ -126,11 +144,27 @@ impl Table {
         Ok(Table { rows })
     }
 
+    /// Only with feature `dev-rows`: the table written as `text`, every row marked
+    /// [`RowOrigin::Dev`](crate::RowOrigin::Dev). Same format and same refusals as
+    /// [`Table::from_toml`]. Merge it after the shipped table ([`Table::merge`]).
+    #[cfg(feature = "dev-rows")]
+    pub fn from_toml_dev(text: &str) -> Result<Table, TableError> {
+        let mut table = Table::from_toml(text)?;
+        for row in &mut table.rows {
+            row.origin = crate::dev::RowOrigin::Dev;
+        }
+        Ok(table)
+    }
+
     /// This table's rows, then the rows of `other` whose unit this table does not already name.
     /// Load the shipped file first and the administrator's files after it: a later file adds
-    /// programs and units, and cannot take over a unit the shipped table names.
+    /// programs and units, and cannot take over a unit the shipped table names. With feature
+    /// `dev-rows`, developer rows always end up after the shipped ones, whatever the order of
+    /// the merge, and a shipped row displaces a developer row that names its unit.
     pub fn merge(mut self, other: Table) -> Table {
         for row in other.rows {
+            #[cfg(feature = "dev-rows")]
+            crate::dev::make_room(&mut self.rows, &row);
             let taken = row
                 .unit
                 .as_ref()
@@ -139,6 +173,8 @@ impl Table {
                 self.rows.push(row);
             }
         }
+        #[cfg(feature = "dev-rows")]
+        crate::dev::shipped_first(&mut self.rows);
         self
     }
 
@@ -150,6 +186,13 @@ impl Table {
     /// The row for the unit `unit`.
     pub fn row_for_unit(&self, unit: &UnitName) -> Option<&Row> {
         self.rows.iter().find(|r| r.unit.as_ref() == Some(unit))
+    }
+
+    /// The row for the unit `unit` among the rows that can give a real proof.
+    pub(crate) fn proving_row_for_unit(&self, unit: &UnitName) -> Option<&Row> {
+        self.rows
+            .iter()
+            .find(|r| r.proves() && r.unit.as_ref() == Some(unit))
     }
 
     /// Whether any row names `role`.

@@ -49,7 +49,7 @@ How the pin is obtained:
 it and the crates forbid `unsafe`, so `of_stream` makes the reopened pin; see FINDINGS. A `Requirement`
 may demand `AtConnect`; a consumer of a socket that does must wait for that item.
 
-The proof ladder (`Proof`, ordered `Cgroup < Exe < Full`):
+The proof ladder (`Proof`, ordered `Cgroup < Exe < Full`; with feature `dev-rows`, `Dev < Cgroup < Exe < Full`, see section 8):
 
 1. `Cgroup`: pinned, the cgroup path is read and its leaf names a unit the table has. Reachable only
    when the image cannot be read. A same-user process can move itself into a delegated cgroup: a
@@ -85,7 +85,7 @@ path belongs to another mount namespace, so it is not read: its exe is `Hidden`.
 row for a unit wins, so a later file adds programs and cannot take over a unit. A file is refused
 whole unless the file and every directory above it are root-only. The format is refused whole for:
 an unknown key, a row without `exe`, a relative or `..` path, `**` or two `*` in a segment, a
-malformed id, two rows for one unit, more than 256 rows or 256 KiB. **peephole reads no user file.**
+malformed id, two rows for one unit, more than 256 rows or 256 KiB. **peephole reads no user file** (the opt-in `dev-rows` feature, section 8, is the one exception).
 
 ## 5. API shape
 
@@ -121,3 +121,28 @@ library function reads no environment and no fixed path.
 2. A native program is known by its root-owned image; `LD_PRELOAD` and ptrace ride on its standing.
 3. `Pin::Reopened`.
 4. A client that connects, hands its socket on and exits before the first look is `Unverified`.
+
+## 8. Developer rows (feature `dev-rows`)
+
+A checkout-built stand-in has a user-writable image and no real unit, so it is `Unverified` by rule 3
+and tops out below `Full`. The desktop's developer and acceptance scripts need a seam, and it must
+not exist in a shipped build. Feature `dev-rows` (`peephole-core`, forwarded by `peephole` and
+`peephole-bus`; off by default; the desktop gate greps `cargo tree -e features` for it) adds:
+
+| Piece | Where | What |
+|---|---|---|
+| `RowOrigin::{Shipped, Dev}`, `Row::origin` | `peephole-core` (`dev.rs`, `table.rs`) | where a row came from |
+| `Table::from_toml_dev(text)` | `peephole-core` | the same format, rows marked `Dev` |
+| `Table::merge` | `peephole-core` | developer rows after shipped ones; a shipped unit is never taken, in either merge order |
+| `Proof::Dev` | `peephole-core` | lowest proof, below `Cgroup` |
+| `Requirement::dev(role)` | `peephole-core` | what a consumer lists in its debug builds to accept `Dev` |
+| `judge` rule 2b | `peephole-core` | a native process whose image matches a developer row (and whose cgroup leaf is the row's unit, when it has one), and that no shipped row claims by image, is that service at `Dev`; before rule 3 |
+| `TableFiles::load_dev(fs, path, person)`, `NodeInfo`, `NodeKind`, `ProcFs::info_of`, `LoadError::{NotAFile, NotTheirs}` | `peephole` | a plain file (no link), owned by `person` or root, not group- or world-writable, within `TABLE_FILE_CAP` |
+
+Rules that keep the seam from widening: only shipped rows are consulted for `Cgroup`, `Exe` and
+`Full` (a developer row never names a unit or a program for those); a sandboxed process never
+reaches the rule; a hidden image never matches. `Dev` meets no requirement of `Cgroup`, `Exe` or
+`Full`. Without the feature the API is identical to a build that never had it: the `Dev` variant,
+the `origin` field, the loader and the trait method are all `cfg`-gated, not stubs. Rows from a
+person-owned file let that person's programs take a service's role; this is acceptable only in a
+program's own debug builds.

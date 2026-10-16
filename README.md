@@ -44,7 +44,22 @@ Other limits, stated rather than hidden:
 
 ## The table
 
-`dist/desktop-callers.toml` is a sample of the format and of this desktop's own table. A row has `app`, `exe` (a non-empty list of absolute patterns; one `*` per segment, never `**`), `role`, and optionally `unit` and `name`. A row with a `unit` is a service; a row without is a program matched by its image alone, whose ceiling is `Exe`. The loader refuses a file that is not owned by root alone, or whose directory anyone else can write. peephole reads no user file: nothing a person's file says makes a process more trusted.
+`dist/desktop-callers.toml` is a sample of the format and of this desktop's own table. A row has `app`, `exe` (a non-empty list of absolute patterns; one `*` per segment, never `**`), `role`, and optionally `unit` and `name`. A row with a `unit` is a service; a row without is a program matched by its image alone, whose ceiling is `Exe`. The loader refuses a file that is not owned by root alone, or whose directory anyone else can write. peephole reads no user file: nothing a person's file says makes a process more trusted. (The one exception is the opt-in `dev-rows` feature below, whose rows reach `Proof::Dev` and no higher.)
+
+## Developer rows
+
+Scripts that run a checkout-built stand-in (an accounts stand-in, a router stand-in, an app built in the working tree) cannot be a service in the table: the image is one the person can write and there is no real unit, so `judge` calls it `Unverified` before it looks at any row. Every privileged call to it from such a script is refused. Feature `dev-rows` gives those scripts a seam that cannot exist in a shipped build.
+
+**The risk, plainly: rows read from a file a person owns let that person's programs take a service's role. No shipped program may turn `dev-rows` on.** It is off by default in `peephole-core`, `peephole` and `peephole-bus` (each forwards it to the one below), and the desktop's gate greps `cargo tree -e features` for it in every release shape, as it does for `fake`.
+
+With the feature:
+
+- `Table::from_toml_dev(text)` reads the same format and gives rows whose `origin` is `RowOrigin::Dev`. `TableFiles::load_dev(&fs, path, person)` reads such a file: a plain file (a link is refused), owned by `person` or root, not writable by group or others, within the table file's size cap.
+- `Table::merge` puts developer rows after the shipped ones. A developer row never replaces a shipped row and never holds a unit the shipped table names, whichever table is merged into which.
+- `judge` gives a native (never a sandboxed) process the standing `Service` with the new `Proof::Dev` when its image matches a developer row (and its cgroup leaf is the row's unit, when the row names one), checked before the user-writable rule. A process whose image a shipped row claims is judged by the shipped rows alone. A developer row never gives `Cgroup`, `Exe` or `Full`.
+- `Proof::Dev` sorts below `Proof::Cgroup`, so no requirement of `Cgroup`, `Exe` or `Full` is met by it. A consumer accepts it only by asking: `Requirement::dev(role)` (or `Requirement::new(role, Proof::Dev)`), listed next to its real requirement in its own debug builds (`#[cfg(debug_assertions)]`) and never in a release build. Such a requirement also lets in the real service at any proof, which is what a debug build wants.
+
+Without the feature nothing changes: `Proof` has `Cgroup`, `Exe` and `Full` only, `Row` has no `origin`, and none of the above exists.
 
 ## Building
 
@@ -56,4 +71,5 @@ Other limits, stated rather than hidden:
 |---|---|---|---|
 | `fake` | `peephole`, `peephole-bus` | `Pinned::introduced`, the fixture tree, `BusPeers::introduce` | never |
 | `desktop` | `peephole-core` | the `roles` module of this desktop's own roles | by the desktop |
+| `dev-rows` | all three | developer rows, `Proof::Dev`, `TableFiles::load_dev` (see Developer rows) | never |
 | `tokio` | `peephole-bus` | `Offload::Tokio` and zbus on tokio | optional |

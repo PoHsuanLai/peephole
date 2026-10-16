@@ -6,6 +6,12 @@
 //!    kernel label) makes the peer `Sandboxed`, never a service. A disagreement is `Unverified`.
 //! 2. A native process whose image cannot be read is a service at `Cgroup` proof only when a row
 //!    names the unit its cgroup leaf spells, and `Unverified` otherwise.
+//!
+//!    Rule 2b, only with feature `dev-rows`: a native process whose image matches a developer row
+//!    (and whose cgroup leaf is the row's unit, when it names one), and that no shipped row claims
+//!    by image, is that service at `Proof::Dev`. Checked before rule 3, so an image the person
+//!    wrote can have it.
+//!
 //! 3. A native process whose image, or a directory above it, can be written by someone other than
 //!    root is `Unverified`: nothing about it may be remembered.
 //! 4. A root-owned image in a row with a unit is that service when the cgroup leaf is the unit
@@ -78,7 +84,7 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
     let leaf_row = facts
         .cgroup
         .unit_leaf()
-        .and_then(|unit| table.row_for_unit(&unit));
+        .and_then(|unit| table.proving_row_for_unit(&unit));
     let (path, trust) = match &facts.exe {
         Exe::Read { path, trust } => (path, trust),
         Exe::Hidden => {
@@ -92,6 +98,12 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
             };
         }
     };
+    #[cfg(feature = "dev-rows")]
+    {
+        if let Some(row) = crate::dev::dev_row(facts, table, path) {
+            return service(row, Proof::Dev, facts);
+        }
+    }
     if let FileTrust::Writable(_) = trust {
         let exe_name = path.file_name().map(str::to_owned);
         return Standing::Unverified {
@@ -110,7 +122,7 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
     let program_row = table
         .rows()
         .iter()
-        .find(|row| row.unit.is_none() && row.matches_image(path));
+        .find(|row| row.proves() && row.unit.is_none() && row.matches_image(path));
     match program_row {
         Some(row) => service(row, Proof::Exe, facts),
         None => Standing::Program {

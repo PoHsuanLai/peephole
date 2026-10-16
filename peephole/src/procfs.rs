@@ -1,6 +1,8 @@
 //! The file system as the prober sees it: `/proc` and the files its answers point at. A trait,
 //! so the tests read a fixture tree and the real one reads the kernel.
 
+#[cfg(feature = "dev-rows")]
+use crate::devfile::{NodeInfo, NodeKind};
 use peephole_core::Uid;
 use peephole_core::{FileTrust, Writer};
 use std::io::{self, Read};
@@ -26,6 +28,13 @@ pub trait ProcFs: Send + Sync {
     fn read_file_capped(&self, abs: &Path, cap: u64) -> io::Result<Vec<u8>>;
     /// The entries of the absolute directory `abs`, as absolute paths.
     fn list_dir(&self, abs: &Path) -> io::Result<Vec<PathBuf>>;
+    /// Only with feature `dev-rows`: what the absolute path `abs` itself is (a final link is not
+    /// followed), who owns it and its permission bits. The default refuses, so a view that does
+    /// not know cannot load a developer file.
+    #[cfg(feature = "dev-rows")]
+    fn info_of(&self, _abs: &Path) -> io::Result<NodeInfo> {
+        Err(io::Error::from(io::ErrorKind::Unsupported))
+    }
 }
 
 /// The trust of a file owned by `uid` with permission bits `mode`: root-only when root owns it
@@ -107,5 +116,20 @@ impl ProcFs for RealProc {
         std::fs::read_dir(abs)?
             .map(|entry| entry.map(|e| e.path()))
             .collect()
+    }
+
+    #[cfg(feature = "dev-rows")]
+    fn info_of(&self, abs: &Path) -> io::Result<NodeInfo> {
+        let meta = std::fs::symlink_metadata(abs)?;
+        let kind = match meta.file_type() {
+            t if t.is_symlink() => NodeKind::Link,
+            t if t.is_file() => NodeKind::File,
+            _ => NodeKind::Other,
+        };
+        Ok(NodeInfo {
+            kind,
+            owner: Uid::new(meta.uid()),
+            mode: meta.mode(),
+        })
     }
 }

@@ -6,6 +6,8 @@
 //! its own blocking pool (`peephole-bus` offers the seam). It contains no `unsafe`; the pidfd
 //! comes from rustix.
 
+#[cfg(feature = "dev-rows")]
+mod devfile;
 mod error;
 mod pin;
 mod probe;
@@ -19,6 +21,8 @@ pub mod fake;
 #[cfg(feature = "fake")]
 mod fixture;
 
+#[cfg(feature = "dev-rows")]
+pub use devfile::{NodeInfo, NodeKind};
 pub use error::{LoadError, PinError, ProbeError};
 #[cfg(feature = "fake")]
 pub use fixture::{FixtureImage, FixtureProc, FixtureProcess};

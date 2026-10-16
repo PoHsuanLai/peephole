@@ -3,10 +3,19 @@
 use crate::facts::{Engine, Pin};
 use crate::ids::{AppKey, ExePath, RoleName};
 
-/// How much was shown about a service. Ordered: each level includes the one below it.
+/// How much was shown about a service. Ordered: each level includes the one below it. With
+/// feature `dev-rows` the ladder has one more step at the bottom, `Dev`; a build without the
+/// feature has exactly `Cgroup < Exe < Full`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum Proof {
+    /// Only with feature `dev-rows`: the image matched a row from a developer's own file. The
+    /// image may be one the person wrote, so this shows nothing about the program; it is the
+    /// lowest proof, below [`Proof::Cgroup`], and no requirement of `Cgroup`, `Exe` or `Full` is
+    /// met by it. A consumer accepts it only by asking for it ([`crate::Requirement::dev`]),
+    /// and only in its own debug builds.
+    #[cfg(feature = "dev-rows")]
+    Dev,
     /// Pinned, uid known, the cgroup names the unit. A same-user process can move itself into a
     /// delegated cgroup, so this is a speed bump, never a boundary. It is all that can be had
     /// when the image cannot be read.

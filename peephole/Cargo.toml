@@ -19,6 +19,8 @@ thiserror = { workspace = true }
 fake = []
 # Forwarded to peephole-core.
 desktop = ["peephole-core/desktop"]
+# Forwarded to peephole-core (developer rows) and adds `TableFiles::load_dev`. Never shipped.
+dev-rows = ["peephole-core/dev-rows"]
 
 [lints]
 workspace = true

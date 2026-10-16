@@ -27,6 +27,15 @@ impl Requirement {
         }
     }
 
+    /// Only with feature `dev-rows`: the role `role` at any proof, `Proof::Dev` included. A
+    /// consumer lists it beside its real requirement in its own debug builds, so a stand-in
+    /// built in a checkout is let in; a shipped build never lists it. It also lets in the real
+    /// service at any of the higher proofs, which is the point of a debug build.
+    #[cfg(feature = "dev-rows")]
+    pub fn dev(role: RoleName) -> Requirement {
+        Requirement::new(role, Proof::Dev)
+    }
+
     /// The same, demanding the stated pin.
     pub fn pinned(self, pin: PinNeed) -> Requirement {
         Requirement { pin, ..self }

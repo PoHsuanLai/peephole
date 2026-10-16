@@ -26,6 +26,19 @@ Departures from the plan, standing facts and open items. An entry names the cond
 9. **`Cgroup` proof is reachable only with a hidden image.** A readable but user-writable image is
    `Unverified`, whatever its cgroup says, so no `Cgroup` standing exists for a hostile image.
 
+10. **Developer rows are a cargo feature, not a table key or a runtime switch (0.1.4).** The
+    desktop's developer scripts run stand-ins from the checkout; a runtime switch could be turned on
+    in a shipped binary, a feature cannot (the gate greps for it). `Proof::Dev` and the `origin`
+    field are `cfg`-gated, so a build without the feature has the same API as 0.1.3: `Proof` is
+    already `#[non_exhaustive]`, and the new variant sits first so the derived order puts it below
+    `Cgroup`. A developer row may name an app or role a shipped row names (a stand-in for the
+    accounts service is `org.quire.Accounts` in both); what it never does is replace a shipped row,
+    hold a shipped unit, or give a proof above `Dev`. `Requirement::dev` accepts every proof, so a
+    consumer's debug build lets in the real service too; "only Dev or Full" is not expressible
+    without a new `Requirement` field. `TableFiles::load_dev` takes the person's uid as an argument
+    because `ProcFs` has no notion of the current user. `RealProc::info_of` is read, not run in a
+    test (no scratch-directory test in this crate).
+
 ## Open items
 
 1. **Snap from a socket.** The Snap label comes only from the bus's `LinuxSecurityLabel`; `SO_PEERSEC`

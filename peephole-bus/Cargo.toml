@@ -26,6 +26,8 @@ tokio = ["dep:tokio", "zbus/tokio"]
 fake = ["peephole/fake"]
 # Forwarded to peephole-core (`roles`).
 desktop = ["peephole/desktop"]
+# Forwarded to peephole-core (developer rows). Never shipped.
+dev-rows = ["peephole/dev-rows"]
 
 [lints]
 workspace = true
