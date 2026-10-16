@@ -168,6 +168,7 @@ fn a_user_writable_image_is_unverified_whatever_the_manager_says() {
         standing,
         Standing::Unverified {
             exe_name: Some("sill".to_owned()),
+            scope_app: None,
             why: WhyNot::ImageWritable
         }
     );

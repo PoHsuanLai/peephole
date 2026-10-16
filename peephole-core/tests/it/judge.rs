@@ -25,6 +25,7 @@ fn service(role: &str, proof: Proof, pin: Pin) -> Standing {
 fn unverified(name: Option<&str>, why: WhyNot) -> Standing {
     Standing::Unverified {
         exe_name: name.map(str::to_owned),
+        scope_app: None,
         why,
     }
 }
@@ -323,4 +324,33 @@ fn a_snap_is_known_by_its_kernel_label() {
         judge(&f, &table()),
         unverified(None, WhyNot::SandboxDisagrees)
     );
+}
+
+/// A user-writable image keeps its launcher's scope name as a claim, and only that: no role, no
+/// service, and an image that is hidden or a process that is gone carries none.
+#[test]
+fn a_writable_image_carries_its_scope_as_a_claim_and_nothing_else_does() {
+    let scope =
+        "/user.slice/user-1000.slice/user@1000.service/app.slice/app-org.quire.Mail-4242.scope";
+    let f = facts(scope, user_writable("/home/p/src/mailo/target/debug/mailo"));
+    assert_eq!(
+        judge(&f, &table()),
+        Standing::Unverified {
+            exe_name: Some("mailo".to_owned()),
+            scope_app: Some(AppKey::new("org.quire.Mail").expect("an app")),
+            why: WhyNot::ImageWritable,
+        }
+    );
+    // Without a scope there is no claim to carry.
+    let f = facts(
+        "/user.slice/user-1000.slice/session-2.scope",
+        user_writable("/home/p/bin/mailo"),
+    );
+    assert_eq!(
+        judge(&f, &table()),
+        unverified(Some("mailo"), WhyNot::ImageWritable)
+    );
+    // A hidden image in the same scope claims nothing: no row names it, so it is nobody.
+    let f = facts(scope, Exe::Hidden);
+    assert_eq!(judge(&f, &table()), unverified(None, WhyNot::ImageHidden));
 }

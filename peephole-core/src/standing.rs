@@ -67,6 +67,11 @@ pub enum Standing {
     Unverified {
         /// The image's file name, when it was read.
         exe_name: Option<String>,
+        /// The app the launcher's scope names (`app-<id>-<n>.scope`), carried only when the image
+        /// is user-writable (`WhyNot::ImageWritable`): a claim for display and for a consumer that
+        /// accepted scope names before (porter's accounts), never a role, never a service, and
+        /// nothing about it may be remembered by its image. `None` for every other reason.
+        scope_app: Option<AppKey>,
         /// Why nothing is known.
         why: WhyNot,
     },
