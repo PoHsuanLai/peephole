@@ -1,0 +1,202 @@
+# The desktop's own processes: which program is which, and the role it plays.
+#
+# One shipped table, root-owned: /etc/quire/desktop-callers.toml, with additions for an
+# administrator or a developer in /etc/quire/desktop-callers.d/*.toml. peephole reads no user
+# file: nothing a person's file says makes a process more trusted. A file that is not owned by
+# root alone is refused, and so is any file whose directory is writable by someone else.
+#
+# A row with a `unit` is a service: the process must sit in that unit's cgroup and run one of the
+# `exe` images (root-owned all the way up). A consumer that asks for `Full` also needs the unit
+# manager to confirm the unit (root-owned definition, not transient, no user drop-in, this
+# process as its main process, this program as its ExecStart). A row with no `unit` is a program
+# known by its image alone; its ceiling is `Exe`. `exe` is required: a unit name alone proves
+# nothing. In an `exe` path a `*` stands for any run of characters inside one path segment.
+#
+# This sample is what the release lane generates from release/exports.toml and build.sh, so a
+# moved binary updates the table in the same bundle. Role names are the constants of
+# `peephole-core`'s `roles` module (feature `desktop`).
+
+# The shell: draws the desktop and asks the person on behalf of other programs.
+[[peer]]
+app  = "org.quire.Shell"
+unit = "sill.service"
+exe  = [
+  "/opt/quire/releases/*/bin/sill",
+  "/opt/quire/current/bin/sill",
+  "/usr/local/bin/sill",
+  "/usr/bin/sill",
+]
+role = "shell"
+
+# The portal backend: asks the shell, is handed an input socket, captures the screen.
+[[peer]]
+app  = "org.quire.Portal"
+unit = "transom.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/transom",
+  "/opt/quire/releases/*/bin/transom",
+  "/usr/libexec/transom",
+]
+role = "portal"
+
+# The portal frontend (Ubuntu and Fedora / Arch paths). The only caller of the backend.
+[[peer]]
+app  = "org.freedesktop.portal.Desktop"
+unit = "xdg-desktop-portal.service"
+exe  = [
+  "/usr/libexec/xdg-desktop-portal",
+  "/usr/lib/xdg-desktop-portal",
+]
+role = "portal_frontend"
+
+# The compositor.
+[[peer]]
+app  = "org.quire.Compositor"
+unit = "casement.service"
+exe  = [
+  "/opt/quire/releases/*/bin/casement",
+  "/opt/quire/current/bin/casement",
+  "/usr/local/bin/casement",
+  "/usr/bin/casement",
+]
+role = "compositor"
+
+# The agent tier.
+[[peer]]
+app  = "org.quire.Agent"
+unit = "cuad.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/cuad",
+  "/usr/libexec/quire/cuad",
+]
+role = "agent_tier"
+
+# The Settings app.
+[[peer]]
+app  = "org.quire.Settings"
+unit = "org.quire.Settings.service"
+exe  = [
+  "/opt/quire/releases/*/bin/detent",
+  "/usr/local/bin/detent",
+  "/usr/bin/detent",
+]
+role = "settings"
+
+# The software-update service.
+[[peer]]
+app  = "org.quire.Updates"
+unit = "slipway.service"
+exe  = [
+  "/opt/quire/releases/*/bin/slipway",
+  "/opt/quire/current/bin/slipway",
+]
+role = "updater"
+
+# The slipway command line. A program: it has no unit, so its ceiling is Exe.
+[[peer]]
+app  = "org.quire.Updater"
+exe  = [
+  "/opt/quire/releases/*/bin/slipway",
+  "/opt/quire/current/bin/slipway",
+  "/usr/local/bin/slipway",
+]
+role = "updater_cli"
+
+# The touchpad daemon.
+[[peer]]
+app  = "org.quire.Palmrest"
+unit = "palmrest.service"
+exe  = [
+  "/opt/quire/releases/*/bin/palmrest",
+  "/usr/local/bin/palmrest",
+  "/usr/bin/palmrest",
+]
+role = "pad_daemon"
+
+# The keymap daemon.
+[[peer]]
+app  = "org.quire.Keycap"
+unit = "keycap.service"
+exe  = [
+  "/opt/quire/releases/*/bin/keycap",
+  "/usr/local/bin/keycap",
+  "/usr/bin/keycap",
+]
+role = "keymap_daemon"
+
+# The accounts service.
+[[peer]]
+app  = "org.quire.Accounts"
+unit = "accountd.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/accountd",
+  "/usr/libexec/quire/accountd",
+]
+role = "accounts"
+
+# The model-access service.
+[[peer]]
+app  = "org.quire.Inference"
+unit = "inferd.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/inferd",
+  "/usr/libexec/quire/inferd",
+]
+role = "inference"
+
+# The sync service.
+[[peer]]
+app  = "org.quire.Sync"
+unit = "syncd.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/syncd",
+  "/usr/libexec/quire/syncd",
+]
+role = "sync"
+
+# The intent router.
+[[peer]]
+app  = "org.quire.Intents"
+unit = "intentd.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/intentd",
+  "/usr/libexec/quire/intentd",
+]
+role = "router"
+
+# The assistant companion.
+[[peer]]
+app  = "org.quire.Companion"
+unit = "companiond.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/companiond",
+  "/usr/libexec/quire/companiond",
+]
+role = "companion"
+
+# The memory service.
+[[peer]]
+app  = "org.quire.Memory"
+unit = "memoryd.service"
+exe  = [
+  "/opt/quire/releases/*/libexec/quire/memoryd",
+  "/usr/libexec/quire/memoryd",
+]
+role = "memory"
+
+# May create security contexts for the sandboxes it starts.
+[[peer]]
+app  = "org.quire.Flatpak"
+exe  = [
+  "/usr/bin/flatpak",
+]
+role = "sandbox_launcher"
+
+# The unit manager: its answers about units are believed only from this image.
+[[peer]]
+app  = "org.freedesktop.systemd1"
+exe  = [
+  "/usr/lib/systemd/systemd",
+  "/lib/systemd/systemd",
+]
+role = "manager"

@@ -1,0 +1,37 @@
+[workspace]
+resolver = "3"
+members = ["peephole-core", "peephole", "peephole-bus"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+# The toolchain itself is pinned in rust-toolchain.toml; this is the oldest compiler the code is written for.
+rust-version = "1.92"
+repository = "https://github.com/PoHsuanLai/peephole"
+# Consumers take peephole by git rev, as the rest of the program does.
+publish = false
+
+[workspace.dependencies]
+peephole-core = { path = "peephole-core" }
+peephole = { path = "peephole" }
+peephole-bus = { path = "peephole-bus" }
+
+# Version lines copied from quire's docs/workspace-deps.toml (the program's one pinned block).
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+toml = "1"
+rustix = { version = "1.1", default-features = false, features = ["std", "event", "net", "process"] }
+zbus = { version = "5.19", default-features = false }
+futures-timer = "3"
+tempfile = "3"
+# Only `Offload::Tokio` (feature `tokio` of peephole-bus) and the bus tests use it.
+tokio = { version = "1", default-features = false, features = ["rt"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+missing_debug_implementations = "warn"
+
+# Dependencies keep no debug info: it is most of what a test link carries.
+[profile.dev.package."*"]
+debug = false
