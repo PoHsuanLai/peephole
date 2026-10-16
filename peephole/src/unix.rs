@@ -47,10 +47,12 @@ impl<P: ProcFs> Prober<P> {
             Ok(who) => self.stand(&who, table),
             Err(PinError::PeerGone) => Standing::Unverified {
                 exe_name: None,
+                scope_app: None,
                 why: WhyNot::PeerGone,
             },
             Err(_) => Standing::Unverified {
                 exe_name: None,
+                scope_app: None,
                 why: WhyNot::Unreadable,
             },
         }

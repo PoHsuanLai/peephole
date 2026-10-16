@@ -230,6 +230,7 @@ fn a_process_that_left_while_it_was_read_is_gone() {
         Prober::new(tree).stand(&gone, &table),
         Standing::Unverified {
             exe_name: None,
+            scope_app: None,
             why: WhyNot::PeerGone
         }
     );
@@ -263,6 +264,7 @@ fn stand_judges_without_the_manager_so_a_service_tops_out_at_exe() {
         Prober::new(tree).stand(&held(), &table),
         Standing::Unverified {
             exe_name: Some("sill".into()),
+            scope_app: None,
             why: WhyNot::ImageWritable
         }
     );

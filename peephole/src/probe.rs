@@ -109,10 +109,12 @@ impl<P: ProcFs> Prober<P> {
             Ok(facts) => judge(&facts, table),
             Err(ProbeError::PeerGone) => Standing::Unverified {
                 exe_name: None,
+                scope_app: None,
                 why: WhyNot::PeerGone,
             },
             Err(_) => Standing::Unverified {
                 exe_name: None,
+                scope_app: None,
                 why: WhyNot::Unreadable,
             },
         }

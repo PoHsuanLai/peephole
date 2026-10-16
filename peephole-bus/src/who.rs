@@ -136,6 +136,7 @@ impl<P, O, U> BusPeers<P, O, U> {
 fn unverified(why: WhyNot) -> Standing {
     Standing::Unverified {
         exe_name: None,
+        scope_app: None,
         why,
     }
 }

@@ -55,6 +55,7 @@ fn refusals_do_not_say_which_check_failed() {
     let need = [Requirement::new(role("shell"), Proof::Exe)];
     let unknown = Standing::Unverified {
         exe_name: None,
+        scope_app: None,
         why: WhyNot::ImageWritable,
     };
     let program = Standing::Program {

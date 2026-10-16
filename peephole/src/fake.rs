@@ -50,6 +50,7 @@ pub fn introduced_program(path: &str) -> Option<Standing> {
 pub fn introduced_unverified(why: WhyNot) -> Standing {
     Standing::Unverified {
         exe_name: None,
+        scope_app: None,
         why,
     }
 }

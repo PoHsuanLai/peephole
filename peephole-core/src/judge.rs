@@ -33,6 +33,7 @@ pub fn judge(facts: &Facts, table: &Table) -> Standing {
 fn disagrees() -> Standing {
     Standing::Unverified {
         exe_name: None,
+        scope_app: None,
         why: WhyNot::SandboxDisagrees,
     }
 }
@@ -85,6 +86,7 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
                 Some(row) => service(row, Proof::Cgroup, facts),
                 None => Standing::Unverified {
                     exe_name: None,
+                    scope_app: None,
                     why: WhyNot::ImageHidden,
                 },
             };
@@ -94,6 +96,7 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
         let exe_name = path.file_name().map(str::to_owned);
         return Standing::Unverified {
             exe_name,
+            scope_app: scope_app(&facts.cgroup),
             why: WhyNot::ImageWritable,
         };
     }
