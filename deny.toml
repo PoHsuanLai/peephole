@@ -1,0 +1,47 @@
+# cargo-deny gate. Run: cargo deny check
+#
+# A dependency whose licence is not listed, a known advisory, a banned crate or an unlisted source
+# fails the gate rather than being noticed later by someone reading Cargo.lock.
+
+[graph]
+targets = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+
+[licenses]
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "CC0-1.0",
+    "Unicode-3.0",
+    "Zlib",
+    # Weak, file-level copyleft: fine to depend on, never to paste source from (CONVENTIONS.md).
+    "MPL-2.0",
+]
+confidence-threshold = 0.9
+
+# What stays out of the list is strong copyleft: GPL, AGPL, EUPL. A dependency arriving under one
+# would change what this library may be distributed as, and should stop the build.
+
+[advisories]
+# Known vulnerabilities and unmaintained crates fail the gate. An ignore needs an id, a date and a reason.
+version = 2
+ignore = []
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+allow-wildcard-paths = true
+deny = [
+    { name = "openssl" },
+    { name = "openssl-sys" },
+]
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+allow-git = []

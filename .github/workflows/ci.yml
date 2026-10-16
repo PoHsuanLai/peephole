@@ -1,0 +1,69 @@
+name: ci
+
+# Formatting, lints, licences, the crate boundaries and the tests. No private dependencies, no
+# linker setup: this repository builds with the system linker.
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
+      - name: format
+        run: cargo fmt --all --check
+      - name: clippy
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: licences, advisories, bans, sources
+        run: cargo deny check
+      - name: crate boundaries
+        run: scripts/check-boundary.sh
+
+  # The pure and the synchronous crates: no bus needed.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: test
+        run: cargo nextest run -p peephole-core -p peephole --all-features
+      - name: doc tests
+        run: cargo test --doc -p peephole-core -p peephole --all-features
+
+  # Each test starts a private dbus-daemon with its own scratch directory.
+  bus-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: bus
+        run: sudo apt-get update && sudo apt-get install -y dbus
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - name: test
+        run: cargo nextest run -p peephole-bus --all-features
+
+  # The tokio build of the bus adapter, without the default executor.
+  bus-tokio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: build
+        run: cargo clippy -p peephole-bus --no-default-features --features tokio --all-targets -- -D warnings
