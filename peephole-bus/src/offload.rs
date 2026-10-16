@@ -21,12 +21,12 @@ pub trait Offload: Send + Sync {
 pub struct Inline;
 
 impl Offload for Inline {
-    fn run<T, F>(&self, work: F) -> impl Future<Output = Result<T, Cancelled>> + Send
+    async fn run<T, F>(&self, work: F) -> Result<T, Cancelled>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
     {
-        async move { Ok(work()) }
+        Ok(work())
     }
 }
 
@@ -37,15 +37,13 @@ pub struct Tokio;
 
 #[cfg(feature = "tokio")]
 impl Offload for Tokio {
-    fn run<T, F>(&self, work: F) -> impl Future<Output = Result<T, Cancelled>> + Send
+    async fn run<T, F>(&self, work: F) -> Result<T, Cancelled>
     where
         F: FnOnce() -> T + Send + 'static,
         T: Send + 'static,
     {
-        async move {
-            tokio::task::spawn_blocking(work)
-                .await
-                .map_err(|_| Cancelled)
-        }
+        tokio::task::spawn_blocking(work)
+            .await
+            .map_err(|_| Cancelled)
     }
 }

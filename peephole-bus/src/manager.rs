@@ -47,12 +47,13 @@ impl<P: ProcFs> ManagerLink<P> {
     }
 
     async fn unit_path(&self, name: &UnitName) -> Result<OwnedObjectPath, UnitError> {
+        let args = (name.as_str(),);
         let call = self.connection.call_method(
             Some(SYSTEMD),
             SYSTEMD_PATH,
             Some(SYSTEMD_MANAGER),
             "GetUnit",
-            &(name.as_str(),),
+            &args,
         );
         let reply = bounded(call)
             .await
