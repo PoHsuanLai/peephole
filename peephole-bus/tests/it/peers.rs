@@ -7,8 +7,8 @@ use peephole::fake::introduced_service;
 use peephole::{FixtureImage, FixtureProc, FixtureProcess};
 use peephole_bus::{BusPeers, ManagerCheck};
 use peephole_core::{
-    FileTrust, LOADER_VARIABLES, Pid, Pin, Proof, Refused, Requirement, RoleName, Standing, Table, Uid, WhyNot,
-    Writer,
+    FileTrust, LOADER_VARIABLES, Pid, Pin, Proof, Refused, Requirement, RoleName, Standing, Table,
+    Uid, WhyNot, Writer,
 };
 
 const IMAGE: &str = "/usr/bin/sill";

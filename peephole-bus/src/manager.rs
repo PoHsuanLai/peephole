@@ -5,7 +5,8 @@
 use crate::error::UnitError;
 use crate::timeout::bounded;
 use peephole::{ProcFs, dirs_trust, weaker};
-use peephole_core::{DropIns, ExePath, FileTrust, Fragment, Loader, Pid, Transient, UnitFacts, UnitName,
+use peephole_core::{
+    DropIns, ExePath, FileTrust, Fragment, Loader, Pid, Transient, UnitFacts, UnitName,
 };
 use std::collections::HashMap;
 use std::future::Future;

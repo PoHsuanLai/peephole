@@ -2,8 +2,8 @@
 
 use crate::common::{facts, in_sill_unit, read, root_only, sill_unit, table, user_writable};
 use peephole_core::{
-    AppKey, DropIns, Engine, Exe, FileTrust, Fragment, LOADER_VARIABLES, Loader, Pin, Proof, RoleName, SandboxFacts,
-    Standing, Transient, WhyNot, Writer, judge,
+    AppKey, DropIns, Engine, Exe, FileTrust, Fragment, LOADER_VARIABLES, Loader, Pin, Proof,
+    RoleName, SandboxFacts, Standing, Transient, WhyNot, Writer, judge,
 };
 use std::path::PathBuf;
 
@@ -110,7 +110,10 @@ fn a_unit_proves_full_only_when_it_unsets_every_loader_variable() {
     assert_eq!(none, Loader::Kept(unset(&LOADER_VARIABLES)));
     assert_eq!(with_unit(|u| u.loader = none.clone()), exe);
     // `LD_PRELOAD=` unsets one assignment, not the variable.
-    assert_ne!(Loader::from_unset(&unset(&["LD_PRELOAD=x"])), Loader::Cleared);
+    assert_ne!(
+        Loader::from_unset(&unset(&["LD_PRELOAD=x"])),
+        Loader::Cleared
+    );
     assert_eq!(Loader::Cleared.reason(), None);
 }
 
