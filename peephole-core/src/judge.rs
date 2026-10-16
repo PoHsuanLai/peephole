@@ -9,13 +9,13 @@
 //! 3. A native process whose image, or a directory above it, can be written by someone other than
 //!    root is `Unverified`: nothing about it may be remembered.
 //! 4. A root-owned image in a row with a unit is that service when the cgroup leaf is the unit
-//!    (`Exe`, or `Full` when the manager's facts all agree); a root-owned image in a row without a
+//!    (`Exe`, or `Full` when the manager's facts all agree, loader variables unset included); a root-owned image in a row without a
 //!    unit is that program (`Exe`).
 //! 5. Any other root-owned image is a `Program`, carrying the launcher's scope name as a claim.
 
 use crate::cgroup::{flatpak_scope_in, scope_app};
 use crate::facts::{
-    DropIns, Engine, Exe, Facts, FileTrust, Fragment, SandboxFacts, Transient, UnitFacts,
+    DropIns, Engine, Exe, Facts, FileTrust, Fragment, Loader, SandboxFacts, Transient, UnitFacts,
 };
 use crate::ids::AppKey;
 use crate::standing::{Proof, Standing, WhyNot};
@@ -124,7 +124,8 @@ enum UnitCheck {
 
 /// Whether the manager's facts show that the process is the main process of a real unit: the
 /// unit is the row's, the process is its `MainPID`, the fragment is root-owned, no drop-in is
-/// user-writable, the unit is not transient, and its `ExecStart` program is one of the row's.
+/// user-writable, the unit is not transient, it unsets every loader variable (`Loader::Cleared`; the reason it
+/// does not is [`Loader::reason`]), and its `ExecStart` program is one of the row's.
 /// `ExecStart` is matched against the row's patterns, not against the image: a unit may start
 /// the program through a stable symlink (`/opt/quire/current/bin/x`) while the image is the
 /// resolved release path.
@@ -137,6 +138,7 @@ fn unit_is_real(facts: &Facts, row: &Row) -> UnitCheck {
         && root_fragment(unit)
         && matches!(unit.drop_ins, DropIns::None | DropIns::RootOwned)
         && unit.transient == Transient::No
+        && unit.loader == Loader::Cleared
         && unit
             .exec
             .as_ref()

@@ -7,8 +7,8 @@ use peephole::fake::introduced_service;
 use peephole::{FixtureImage, FixtureProc, FixtureProcess};
 use peephole_bus::{BusPeers, ManagerCheck};
 use peephole_core::{
-    FileTrust, Pid, Pin, Proof, Refused, Requirement, RoleName, Standing, Table, Uid, WhyNot,
-    Writer,
+    FileTrust, LOADER_VARIABLES, Pid, Pin, Proof, Refused, Requirement, RoleName, Standing, Table,
+    Uid, WhyNot, Writer,
 };
 
 const IMAGE: &str = "/usr/bin/sill";
@@ -50,6 +50,7 @@ fn healthy() -> FakeUnit {
         transient: false,
         main_pid: std::process::id(),
         exec: IMAGE.to_owned(),
+        unset: LOADER_VARIABLES.iter().map(|n| (*n).to_owned()).collect(),
     }
 }
 
@@ -114,6 +115,11 @@ fn a_manager_that_disagrees_leaves_the_shell_at_exe() {
         // Someone else is the main process.
         FakeUnit {
             main_pid: 1,
+            ..healthy()
+        },
+        // The unit leaves a loader variable to the manager's environment.
+        FakeUnit {
+            unset: vec!["LD_PRELOAD".to_owned()],
             ..healthy()
         },
         // The unit runs another program.

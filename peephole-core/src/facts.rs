@@ -140,6 +140,88 @@ pub enum Transient {
     No,
 }
 
+/// The variables that make a process load code the image does not name: the dynamic loader's,
+/// and the search paths of the libraries a desktop program opens (GLib, GTK, GStreamer, Mesa,
+/// EGL, GBM, VA-API, Vulkan). `systemctl --user set-environment` and
+/// `~/.config/environment.d` put them in the environment of every user unit, so a root-owned
+/// image is fixed but the code it loads is not. A unit proves `Full` only when its
+/// `UnsetEnvironment=` holds every one of them.
+///
+/// systemd.exec(5) applies `UnsetEnvironment=` last, after the manager's environment,
+/// `Environment=` and `EnvironmentFile=`, so nothing set anywhere else survives it. A unit
+/// should carry exactly this line:
+///
+/// ```text
+/// UnsetEnvironment=LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT GCONV_PATH GIO_EXTRA_MODULES GTK_MODULES GTK_PATH GST_PLUGIN_PATH GST_PLUGIN_SYSTEM_PATH LIBGL_DRIVERS_PATH MESA_LOADER_DRIVER_OVERRIDE __EGL_VENDOR_LIBRARY_DIRS __EGL_VENDOR_LIBRARY_FILENAMES GBM_BACKENDS_PATH LIBVA_DRIVERS_PATH VK_ICD_FILENAMES VK_DRIVER_FILES VK_ADD_DRIVER_FILES VK_LAYER_PATH VK_ADD_LAYER_PATH VK_INSTANCE_LAYERS VK_LOADER_LAYERS_ENABLE
+/// ```
+pub const LOADER_VARIABLES: [&str; 22] = [
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "LD_AUDIT",
+    "GCONV_PATH",
+    "GIO_EXTRA_MODULES",
+    "GTK_MODULES",
+    "GTK_PATH",
+    "GST_PLUGIN_PATH",
+    "GST_PLUGIN_SYSTEM_PATH",
+    "LIBGL_DRIVERS_PATH",
+    "MESA_LOADER_DRIVER_OVERRIDE",
+    "__EGL_VENDOR_LIBRARY_DIRS",
+    "__EGL_VENDOR_LIBRARY_FILENAMES",
+    "GBM_BACKENDS_PATH",
+    "LIBVA_DRIVERS_PATH",
+    "VK_ICD_FILENAMES",
+    "VK_DRIVER_FILES",
+    "VK_ADD_DRIVER_FILES",
+    "VK_LAYER_PATH",
+    "VK_ADD_LAYER_PATH",
+    "VK_INSTANCE_LAYERS",
+    "VK_LOADER_LAYERS_ENABLE",
+];
+
+/// Whether a unit's `UnsetEnvironment=` removes every name of [`LOADER_VARIABLES`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum Loader {
+    /// Every loader variable is unset for the unit.
+    Cleared,
+    /// These loader variables are not unset (all of them when the list could not be read).
+    Kept(Vec<String>),
+}
+
+impl Loader {
+    /// What a unit whose `UnsetEnvironment` is `unset` does about the loader variables. An entry
+    /// of the form `NAME=value` unsets only that exact assignment, so it does not count.
+    pub fn from_unset(unset: &[String]) -> Loader {
+        let missing: Vec<String> = LOADER_VARIABLES
+            .iter()
+            .filter(|name| !unset.iter().any(|entry| entry == *name))
+            .map(|name| (*name).to_owned())
+            .collect();
+        if missing.is_empty() {
+            Loader::Cleared
+        } else {
+            Loader::Kept(missing)
+        }
+    }
+
+    /// What a failed read of `UnsetEnvironment` counts as: nothing is unset.
+    pub fn unknown() -> Loader {
+        Loader::from_unset(&[])
+    }
+
+    /// The variables not unset, as one line for a log or a message; `None` when cleared.
+    pub fn reason(&self) -> Option<String> {
+        match self {
+            Loader::Cleared => None,
+            Loader::Kept(names) => Some(format!(
+                "UnsetEnvironment lacks the loader variables {}",
+                names.join(" ")
+            )),
+        }
+    }
+}
+
 /// What the unit manager says of the unit a process sits in.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UnitFacts {
@@ -155,6 +237,8 @@ pub struct UnitFacts {
     pub transient: Transient,
     /// The program of the first `ExecStart`.
     pub exec: Option<ExePath>,
+    /// Whether the unit unsets the loader variables.
+    pub loader: Loader,
 }
 
 /// Everything read about a pinned process.

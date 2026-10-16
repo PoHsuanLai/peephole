@@ -13,6 +13,7 @@ pub struct FakeUnit {
     pub transient: bool,
     pub main_pid: u32,
     pub exec: String,
+    pub unset: Vec<String>,
 }
 
 /// The shape of systemd's `ExecStart`: `a(sasbttttuii)`.
@@ -69,6 +70,11 @@ impl ServiceProps {
     #[zbus(property, name = "MainPID")]
     fn main_pid(&self) -> u32 {
         self.0.main_pid
+    }
+
+    #[zbus(property)]
+    fn unset_environment(&self) -> Vec<String> {
+        self.0.unset.clone()
     }
 
     #[zbus(property)]
