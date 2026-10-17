@@ -4,12 +4,14 @@ Departures from the plan, standing facts and open items. An entry names the cond
 
 ## Decisions and departures
 
-1. **`Pinned::of_stream` makes `Pin::Reopened`, not `AtConnect`.** rustix 1.1.5 has `socket_peercred`
-   and `pidfd_open` but no safe `SO_PEERPIDFD` wrapper (`net/sockopt.rs`), and every crate forbids
-   `unsafe`. The pin is the reopened one (pid from `SO_PEERCRED`, pidfd at once, `SO_PEERCRED`
-   again). Closes when rustix gains the wrapper (then `of_stream` returns `AtConnect` on kernels with
-   it and falls back). A consumer that demands `PinNeed::AtConnect` of a socket peer (the plan's
-   turnstile does) cannot be satisfied until then; the bus path and `Pinned::from_fd` do give `AtConnect`.
+1. **`Pinned::of_stream` makes `Pin::AtConnect` through nix (0.1.5; was `Reopened`).** rustix 1.1.5
+   has `socket_peercred` and `pidfd_open` but no safe `SO_PEERPIDFD` wrapper (`net/sockopt.rs`), and
+   every crate forbids `unsafe`, so 0.1.4 and earlier reopened the pid (pid from `SO_PEERCRED`, pidfd
+   at once, `SO_PEERCRED` again), which a recycled pid could pass. The owner allowed nix (2026-10-17):
+   `getsockopt(stream, sockopt::PeerPidfd)` is the kernel's descriptor of the connector, checked
+   against `SO_PEERCRED`'s pid by its `fdinfo` and polled alive. `ESRCH` (the connector has exited) is
+   `PeerGone`; any other error (a kernel before 6.5 says `ENOPROTOOPT`) falls back to the reopened pin.
+   This closes casement's NEW-CASB-7 once casement holds its Wayland clients through `of_stream`.
 2. **No `From<Refused> for fdo::Error`.** Both types are foreign to `peephole-bus` (orphan rule).
    `access_denied(Refused) -> fdo::Error` and `BusPeers::require_or_deny` do the same job.
 3. **`watch_owner` is `async` and returns a `Result`.** Subscribing is a bus call. The watch yields

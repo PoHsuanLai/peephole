@@ -3,7 +3,7 @@ resolver = "3"
 members = ["peephole-core", "peephole", "peephole-bus"]
 
 [workspace.package]
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 # The toolchain itself is pinned in rust-toolchain.toml; this is the oldest compiler the code is written for.
@@ -22,6 +22,8 @@ thiserror = "2"
 serde = { version = "1", features = ["derive"] }
 toml = "1"
 rustix = { version = "1.1", default-features = false, features = ["std", "event", "net", "process"] }
+# Only for `SO_PEERPIDFD`, which rustix 1.1 has no safe wrapper for (`Pinned::of_stream`).
+nix = { version = "0.31", default-features = false, features = ["socket"] }
 zbus = { version = "5.19", default-features = false }
 futures-timer = "3"
 tempfile = "3"

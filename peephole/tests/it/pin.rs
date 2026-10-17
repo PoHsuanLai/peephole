@@ -20,8 +20,8 @@ fn a_socketpairs_peer_is_this_process_and_is_alive() {
     let held = Pinned::of_stream(&a).expect("pinned");
     assert_eq!(held.pid(), own_pid());
     assert_eq!(held.uid(), own_uid());
-    // rustix has no safe SO_PEERPIDFD, so a stream's pin is the reopened one.
-    assert_eq!(held.pin(), Pin::Reopened);
+    // The kernel's own pidfd (SO_PEERPIDFD, Linux 6.5; every supported distro has it).
+    assert_eq!(held.pin(), Pin::AtConnect);
     assert_eq!(held.alive(), Alive::Yes);
 }
 

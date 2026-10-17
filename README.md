@@ -39,7 +39,7 @@ Our units (`sill.service`, `casement.service`, `transom.service`, `palmrest.serv
 Other limits, stated rather than hidden:
 
 - A native program is known by its root-owned image. Anything that can run the same image with `LD_PRELOAD` or ptrace (Yama scope 1 lets a parent trace its child) rides on that program's standing.
-- `Pin::Reopened` (a pidfd opened by pid, then the pid checked again) leaves one window: the connecting process died and its pid was reused before we looked. The bus daemon's own pidfd (`ProcessFD`) and `SO_PEERPIDFD` close it; see `ARCHITECTURE.md` for which of them this release makes.
+- `Pin::Reopened` (a pidfd opened by pid, then the pid checked again) leaves one window: the connecting process died and its pid was reused before we looked. The bus daemon's own pidfd (`ProcessFD`) and `SO_PEERPIDFD` close it; this release uses both where the bus and the kernel (6.5) offer them.
 - A client that connects, hands its socket to another process and exits before the first look is `Unverified`.
 
 ## The table
@@ -63,7 +63,7 @@ Without the feature nothing changes: `Proof` has `Cgroup`, `Exe` and `Full` only
 
 ## Building
 
-`cargo test --workspace --all-features` needs `dbus-daemon` on the PATH (the bus tests start a private one). The Linux kernel must have `pidfd_open` (5.3). `unsafe` is forbidden in every crate; the pidfd comes through rustix.
+`cargo test --workspace --all-features` needs `dbus-daemon` on the PATH (the bus tests start a private one). The Linux kernel must have `pidfd_open` (5.3). `unsafe` is forbidden in every crate; the pidfd comes through rustix, and `SO_PEERPIDFD` through nix.
 
 ## Tests and features
 

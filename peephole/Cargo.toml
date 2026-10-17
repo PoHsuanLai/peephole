@@ -10,6 +10,7 @@ publish.workspace = true
 
 [dependencies]
 peephole-core = { workspace = true }
+nix = { workspace = true }
 rustix = { workspace = true }
 thiserror = { workspace = true }
 

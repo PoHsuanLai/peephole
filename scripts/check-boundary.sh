@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.."
 #   peephole-core: pure. No bus, no system-call layer, no async runtime, no executor.
 #   peephole:      sync I/O. No bus, no async runtime, no executor.
 #   peephole-bus:  the adapter. May reach all of those, but never an HTTP client or a TLS stack.
-EFFECTS="zbus zvariant rustix libc tokio async-io futures-timer"
+EFFECTS="zbus zvariant rustix nix libc tokio async-io futures-timer"
 RULES=(
   "peephole-core: $EFFECTS"
   "peephole: zbus zvariant tokio async-io futures-timer"

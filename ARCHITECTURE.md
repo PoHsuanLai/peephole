@@ -11,7 +11,7 @@ updater, a root input service) then say which roles a method accepts.
 | Crate | Layer | Contents | Depends on |
 | --- | --- | --- | --- |
 | `peephole-core` | pure | ids, `Table` (TOML codec), `Facts`, `Standing`, `judge`, `Requirement`, `Refused`, the text parsers of `procinfo`, the `roles` constants (feature `desktop`) | serde, toml, thiserror |
-| `peephole` | sync I/O | `Pinned` (pidfd), `ProcFs` (`RealProc`; the fixture tree under `fake`), `Prober`, the ownership walk, `TableFiles` (the loader), `fake` | peephole-core, rustix, thiserror |
+| `peephole` | sync I/O | `Pinned` (pidfd), `ProcFs` (`RealProc`; the fixture tree under `fake`), `Prober`, the ownership walk, `TableFiles` (the loader), `fake` | peephole-core, rustix, nix (`SO_PEERPIDFD` only), thiserror |
 | `peephole-bus` | async adapter | `BusPeers`: credentials, the manager's unit facts (`UnitSource`, `ManagerLink`), `require`, `owner_of`, `watch_owner`, `Offload` | peephole, peephole-core, zbus 5, futures-timer, thiserror |
 
 `peephole-core` reaches no bus, system-call layer, runtime or executor; `peephole` reaches no bus or
@@ -42,12 +42,14 @@ How the pin is obtained:
 |---|---|---|---|
 | bus, the daemon offers `ProcessFD` in `GetConnectionCredentials` | that fd, checked against the reported pid by its `fdinfo` | `AtConnect` | `peephole-bus` |
 | bus, no `ProcessFD` | `pidfd_open(ProcessID)` at once, then the credentials are asked again: same pid and user | `Reopened` | `peephole-bus` |
-| unix socket | `SO_PEERCRED` pid, `pidfd_open`, `SO_PEERCRED` again | `Reopened` | `Pinned::of_stream` |
+| unix socket | `SO_PEERPIDFD`: the kernel's pidfd of the connector, checked against `SO_PEERCRED`'s pid by its `fdinfo` | `AtConnect` | `Pinned::of_stream` |
+| unix socket, kernel before 6.5 | `SO_PEERCRED` pid, `pidfd_open`, `SO_PEERCRED` again | `Reopened` | `Pinned::of_stream` |
 | a descriptor the caller holds | the fd, checked against the offered pid by its `fdinfo` | `AtConnect` | `Pinned::from_fd` |
 
-`SO_PEERPIDFD` (kernel 6.5) would make a socket's pin `AtConnect`. rustix 1.1 has no safe wrapper for
-it and the crates forbid `unsafe`, so `of_stream` makes the reopened pin; see FINDINGS. A `Requirement`
-may demand `AtConnect`; a consumer of a socket that does must wait for that item.
+`SO_PEERPIDFD` comes through nix (`sockopt::PeerPidfd`, feature `socket`): rustix 1.1 has no safe
+wrapper for it and the crates forbid `unsafe`. A peer that exited before the look is `PeerGone` (the
+kernel says `ESRCH`), never the process that took its pid. Ubuntu 24.04 (6.8), Fedora and Arch all have
+the option; an older kernel gets the reopened pin. See FINDINGS 1.
 
 The proof ladder (`Proof`, ordered `Cgroup < Exe < Full`; with feature `dev-rows`, `Dev < Cgroup < Exe < Full`, see section 8):
 
