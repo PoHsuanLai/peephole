@@ -9,7 +9,7 @@ use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use rustix::io::Errno;
 use rustix::process::{PidfdFlags, pidfd_open};
 use std::io::{self, Read};
-use std::os::fd::{AsRawFd, OwnedFd};
+use std::os::fd::{AsFd, AsRawFd, BorrowedFd, OwnedFd};
 
 /// The most of a `/proc` status or fdinfo file read: the real ones are a few kilobytes.
 const PROC_TEXT_CAP: u64 = 64 * 1024;
@@ -124,6 +124,16 @@ impl Pinned {
     /// How firmly it was held.
     pub fn pin(&self) -> Pin {
         self.pin
+    }
+
+    /// The pidfd that holds the process, for a caller that acts on the same process later (a
+    /// signal through `pidfd_send_signal`, a wait). `None` only for a test's claim (`fake`).
+    pub fn pidfd(&self) -> Option<BorrowedFd<'_>> {
+        match &self.hold {
+            Hold::Fd(fd) => Some(fd.as_fd()),
+            #[cfg(feature = "fake")]
+            Hold::Fixed(_) => None,
+        }
     }
 
     /// Whether the process is still running: a pidfd turns readable when its process exits.

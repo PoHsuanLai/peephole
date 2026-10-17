@@ -11,7 +11,8 @@ Departures from the plan, standing facts and open items. An entry names the cond
    `getsockopt(stream, sockopt::PeerPidfd)` is the kernel's descriptor of the connector, checked
    against `SO_PEERCRED`'s pid by its `fdinfo` and polled alive. `ESRCH` (the connector has exited) is
    `PeerGone`; any other error (a kernel before 6.5 says `ENOPROTOOPT`) falls back to the reopened pin.
-   This closes casement's NEW-CASB-7 once casement holds its Wayland clients through `of_stream`.
+   This closes casement's NEW-CASB-7 once casement holds its Wayland clients through `of_stream`;
+   `Pinned::pidfd` (0.1.6) lends the held descriptor so casement signals the same process it judged.
 2. **No `From<Refused> for fdo::Error`.** Both types are foreign to `peephole-bus` (orphan rule).
    `access_denied(Refused) -> fdo::Error` and `BusPeers::require_or_deny` do the same job.
 3. **`watch_owner` is `async` and returns a `Result`.** Subscribing is a bus call. The watch yields

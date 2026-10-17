@@ -3,6 +3,7 @@
 
 use peephole::{Alive, PinError, Pinned};
 use peephole_core::{Pid, Pin, Uid};
+use std::os::fd::AsRawFd;
 use std::os::unix::net::UnixStream;
 use std::process::{Command, Stdio};
 
@@ -23,6 +24,13 @@ fn a_socketpairs_peer_is_this_process_and_is_alive() {
     // The kernel's own pidfd (SO_PEERPIDFD, Linux 6.5; every supported distro has it).
     assert_eq!(held.pin(), Pin::AtConnect);
     assert_eq!(held.alive(), Alive::Yes);
+    let lent = held.pidfd().expect("a real hold lends its pidfd");
+    let info =
+        std::fs::read_to_string(format!("/proc/self/fdinfo/{}", lent.as_raw_fd())).expect("fdinfo");
+    assert!(
+        info.contains(&format!("Pid:\t{}", std::process::id())),
+        "{info}"
+    );
 }
 
 #[test]
