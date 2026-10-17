@@ -29,7 +29,11 @@ confidence-threshold = 0.9
 [advisories]
 # Known vulnerabilities and unmaintained crates fail the gate. An ignore needs an id, a date and a reason.
 version = 2
-ignore = []
+ignore = [
+    { id = "RUSTSEC-2026-0370", reason = "zvariant is unmaintained only because zbus 6 folds it in as its wire module; no known flaw; remove when the desktop set moves to zbus 6" },
+    { id = "RUSTSEC-2026-0371", reason = "zbus_names is unmaintained only because zbus 6 folds it in; no known flaw; remove when the desktop set moves to zbus 6" },
+    { id = "RUSTSEC-2026-0372", reason = "zvariant_derive is unmaintained only because zbus 6 provides its derives; no known flaw; remove when the desktop set moves to zbus 6" },
+]
 
 [bans]
 multiple-versions = "warn"
