@@ -6,7 +6,7 @@ use crate::probe::Prober;
 use crate::procfs::ProcFs;
 use nix::errno::Errno;
 use nix::sys::socket::{getsockopt, sockopt::PeerPidfd};
-use peephole_core::{Pid, Pin, Standing, Table, Uid, WhyNot};
+use peephole_core::{Pid, Pin, Standing, Table, Uid};
 use rustix::event::{PollFd, PollFlags, Timespec, poll};
 use rustix::net::UCred;
 use rustix::net::sockopt::socket_peercred;
@@ -66,16 +66,7 @@ impl<P: ProcFs> Prober<P> {
     pub fn stand_stream(&self, stream: &impl AsFd, table: &Table) -> Standing {
         match Pinned::of_stream(stream) {
             Ok(who) => self.stand(&who, table),
-            Err(PinError::PeerGone) => Standing::Unverified {
-                exe_name: None,
-                scope_app: None,
-                why: WhyNot::PeerGone,
-            },
-            Err(_) => Standing::Unverified {
-                exe_name: None,
-                scope_app: None,
-                why: WhyNot::Unreadable,
-            },
+            Err(e) => Standing::unverified(e.why_not()),
         }
     }
 }

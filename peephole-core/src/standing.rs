@@ -85,3 +85,14 @@ pub enum Standing {
         why: WhyNot,
     },
 }
+
+impl Standing {
+    /// Nothing is known about the process beyond `why`.
+    pub fn unverified(why: WhyNot) -> Standing {
+        Standing::Unverified {
+            exe_name: None,
+            scope_app: None,
+            why,
+        }
+    }
+}

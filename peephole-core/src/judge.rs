@@ -37,11 +37,7 @@ pub fn judge(facts: &Facts, table: &Table) -> Standing {
 }
 
 fn disagrees() -> Standing {
-    Standing::Unverified {
-        exe_name: None,
-        scope_app: None,
-        why: WhyNot::SandboxDisagrees,
-    }
+    Standing::unverified(WhyNot::SandboxDisagrees)
 }
 
 fn judge_flatpak(facts: &Facts, app: &str) -> Standing {
@@ -90,11 +86,7 @@ fn judge_native(facts: &Facts, table: &Table) -> Standing {
         Exe::Hidden => {
             return match leaf_row {
                 Some(row) => service(row, Proof::Cgroup, facts),
-                None => Standing::Unverified {
-                    exe_name: None,
-                    scope_app: None,
-                    why: WhyNot::ImageHidden,
-                },
+                None => Standing::unverified(WhyNot::ImageHidden),
             };
         }
     };

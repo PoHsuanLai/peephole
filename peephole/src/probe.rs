@@ -7,7 +7,7 @@ use crate::procfs::{ProcFs, RealProc};
 use crate::walk::{dirs_trust, weaker};
 use peephole_core::procinfo::parse_flatpak_info;
 use peephole_core::{
-    CgroupPath, Exe, ExePath, Facts, SandboxFacts, Standing, Table, UnitFacts, WhyNot, judge,
+    CgroupPath, Exe, ExePath, Facts, SandboxFacts, Standing, Table, UnitFacts, judge,
 };
 use std::io;
 use std::path::{Path, PathBuf};
@@ -107,16 +107,7 @@ impl<P: ProcFs> Prober<P> {
     pub fn stand(&self, who: &Pinned, table: &Table) -> Standing {
         match self.probe(who, None) {
             Ok(facts) => judge(&facts, table),
-            Err(ProbeError::PeerGone) => Standing::Unverified {
-                exe_name: None,
-                scope_app: None,
-                why: WhyNot::PeerGone,
-            },
-            Err(_) => Standing::Unverified {
-                exe_name: None,
-                scope_app: None,
-                why: WhyNot::Unreadable,
-            },
+            Err(e) => Standing::unverified(e.why_not()),
         }
     }
 

@@ -1,5 +1,6 @@
 //! The errors of the I/O crate.
 
+use peephole_core::WhyNot;
 use std::io;
 
 /// A process that could not be held.
@@ -27,6 +28,17 @@ pub enum PinError {
     Proc(#[source] io::Error),
 }
 
+impl PinError {
+    /// Why a peer that could not be held is unknown: gone, or unreadable. A new variant fails as
+    /// unreadable until it is given its own reason.
+    pub fn why_not(&self) -> WhyNot {
+        match self {
+            PinError::PeerGone => WhyNot::PeerGone,
+            _ => WhyNot::Unreadable,
+        }
+    }
+}
+
 /// The facts about a process that could not be read.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
@@ -49,6 +61,17 @@ pub enum ProbeError {
         /// Which fact.
         what: &'static str,
     },
+}
+
+impl ProbeError {
+    /// Why a process that could not be probed is unknown: gone, or unreadable. A new variant
+    /// fails as unreadable until it is given its own reason.
+    pub fn why_not(&self) -> WhyNot {
+        match self {
+            ProbeError::PeerGone => WhyNot::PeerGone,
+            _ => WhyNot::Unreadable,
+        }
+    }
 }
 
 /// The caller table files that could not be loaded.

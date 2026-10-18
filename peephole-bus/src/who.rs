@@ -5,7 +5,7 @@ use crate::error::{WhoError, access_denied};
 use crate::manager::{ManagerLink, SYSTEMD, UnitSource};
 use crate::offload::{Inline, Offload};
 use crate::timeout::bounded;
-use peephole::{Alive, Pinned, ProbeError, Prober, ProcFs, RealProc};
+use peephole::{Alive, Pinned, Prober, ProcFs, RealProc};
 use peephole_core::procinfo::parse_security_label;
 use peephole_core::{
     Facts, Pid, Pin, Proof, Refused, Requirement, SandboxFacts, Standing, Table, Uid, UnitFacts,
@@ -133,14 +133,6 @@ impl<P, O, U> BusPeers<P, O, U> {
     }
 }
 
-fn unverified(why: WhyNot) -> Standing {
-    Standing::Unverified {
-        exe_name: None,
-        scope_app: None,
-        why,
-    }
-}
-
 impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
     /// Who the sender is: its pin, the manager's facts about its unit when a row names one, and
     /// the judgement. Every bus call is bounded; any failure to identify is an error, and a caller
@@ -185,14 +177,14 @@ impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
         let observed = self.observe(sender).await?;
         let mut facts = match observed.facts {
             Ok(facts) => facts,
-            Err(why) => return Ok(unverified(why)),
+            Err(why) => return Ok(Standing::unverified(why)),
         };
         if units == UnitUse::Ask {
             facts.unit = self.unit_facts(&facts).await;
         }
         match observed.held.alive() {
             Alive::Yes => Ok(judge(&facts, &self.table)),
-            Alive::Gone => Ok(unverified(WhyNot::PeerGone)),
+            Alive::Gone => Ok(Standing::unverified(WhyNot::PeerGone)),
         }
     }
 
@@ -256,8 +248,7 @@ impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
                 }
                 Ok(facts)
             }
-            Err(ProbeError::PeerGone) => Err(WhyNot::PeerGone),
-            Err(_) => Err(WhyNot::Unreadable),
+            Err(e) => Err(e.why_not()),
         };
         Ok(Observed { held, facts })
     }
