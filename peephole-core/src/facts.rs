@@ -3,7 +3,6 @@
 
 use crate::cgroup::CgroupPath;
 use crate::ids::{ExePath, Pid, Uid, UnitName};
-use std::path::PathBuf;
 
 /// How firmly the process was held when its facts were read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -60,6 +59,16 @@ pub enum FileTrust {
     Writable(Writer),
 }
 
+impl FileTrust {
+    /// The weaker of two trusts: `self` if it is writable, else `other`.
+    pub fn weaker(self, other: FileTrust) -> FileTrust {
+        match self {
+            FileTrust::RootOnly => other,
+            writable => writable,
+        }
+    }
+}
+
 /// A process's image.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
@@ -96,8 +105,6 @@ pub enum SandboxFacts {
     Flatpak {
         /// `[Application] name`.
         app: String,
-        /// `[Instance] instance-id`.
-        instance: String,
     },
     /// The kernel security label of a snap (`snap.<name>.<app>`).
     Snap {
@@ -111,9 +118,9 @@ pub enum SandboxFacts {
 #[non_exhaustive]
 pub enum Fragment {
     /// The file and every directory above it are root-only.
-    RootOwned(PathBuf),
+    RootOwned,
     /// Someone other than root can change the file or a directory above it.
-    Writable(PathBuf),
+    Writable,
     /// The unit has no fragment file.
     Missing,
 }

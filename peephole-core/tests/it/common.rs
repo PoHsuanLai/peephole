@@ -4,7 +4,6 @@ use peephole_core::{
     CgroupPath, DropIns, Exe, ExePath, Facts, FileTrust, Fragment, Loader, Pid, Pin, SandboxFacts,
     Table, Transient, Uid, UnitFacts, UnitName, Writer,
 };
-use std::path::PathBuf;
 
 pub const PID: u32 = 4242;
 
@@ -70,7 +69,7 @@ pub fn sill_unit() -> UnitFacts {
     UnitFacts {
         name: UnitName::new("sill.service").expect("a unit"),
         main_pid: Some(pid()),
-        fragment: Fragment::RootOwned(PathBuf::from("/usr/lib/systemd/user/sill.service")),
+        fragment: Fragment::RootOwned,
         drop_ins: DropIns::None,
         transient: Transient::No,
         exec: Some(exe_path("/usr/bin/sill")),

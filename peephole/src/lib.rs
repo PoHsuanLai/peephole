@@ -29,6 +29,6 @@ pub use fixture::{FixtureImage, FixtureProc, FixtureProcess};
 pub use peephole_core;
 pub use pin::{Alive, Pinned};
 pub use probe::{PROBE_MAX_READS, PROBE_READ_CAP, Prober};
-pub use procfs::{ProcFs, RealProc, trust_of_mode};
+pub use procfs::{Follow, ProcFs, RealProc, trust_of_mode};
 pub use tablefile::{DROP_IN_FILES_MAX, TABLE_FILE_CAP, TableFiles};
-pub use walk::{WALK_MAX, dirs_trust, weaker};
+pub use walk::{WALK_MAX, dirs_trust, path_trust};

@@ -4,13 +4,13 @@
 
 use crate::error::UnitError;
 use crate::timeout::bounded;
-use peephole::{ProcFs, dirs_trust, weaker};
+use peephole::{ProcFs, path_trust};
 use peephole_core::{
     DropIns, ExePath, FileTrust, Fragment, Loader, Pid, Transient, UnitFacts, UnitName,
 };
 use std::collections::HashMap;
 use std::future::Future;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use zbus::Connection;
 use zbus::fdo::PropertiesProxy;
 use zbus::names::InterfaceName;
@@ -88,19 +88,16 @@ impl<P: ProcFs> ManagerLink<P> {
     /// The trust of `path` and of every directory above it. A path that cannot be looked at is
     /// not trusted (`None` for a file that is not there).
     fn trust_of_path(&self, path: &Path) -> Option<FileTrust> {
-        let dirs = dirs_trust(&self.fs, path).ok()?;
-        let file = self.fs.trust_of(path).ok()?;
-        Some(weaker(dirs, file))
+        path_trust(&self.fs, path).ok()
     }
 
     fn fragment(&self, text: &str) -> Fragment {
         if text.is_empty() {
             return Fragment::Missing;
         }
-        let path = PathBuf::from(text);
-        match self.trust_of_path(&path) {
-            Some(FileTrust::RootOnly) => Fragment::RootOwned(path),
-            _ => Fragment::Writable(path),
+        match self.trust_of_path(Path::new(text)) {
+            Some(FileTrust::RootOnly) => Fragment::RootOwned,
+            _ => Fragment::Writable,
         }
     }
 

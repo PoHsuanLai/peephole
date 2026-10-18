@@ -3,14 +3,14 @@
 
 use crate::error::ProbeError;
 use crate::pin::{Alive, Pinned};
-use crate::procfs::{ProcFs, RealProc};
-use crate::walk::{dirs_trust, weaker};
+use crate::procfs::{Follow, ProcFs, RealProc};
+use crate::walk::dirs_trust;
 use peephole_core::procinfo::parse_flatpak_info;
 use peephole_core::{
     CgroupPath, Exe, ExePath, Facts, SandboxFacts, Standing, Table, UnitFacts, judge,
 };
 use std::io;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// The most files read for one process. Today three are: cgroup, flatpak metadata, nothing else;
 /// the cap is the bound a change must not exceed silently.
@@ -79,7 +79,7 @@ impl<P: ProcFs> Prober<P> {
     /// left while its files were read is [`ProbeError::PeerGone`].
     pub fn probe(&self, who: &Pinned, unit: Option<UnitFacts>) -> Result<Facts, ProbeError> {
         let mut budget = Budget(PROBE_MAX_READS);
-        let dir = PathBuf::from(who.pid().get().to_string());
+        let dir = self.fs.proc_root().join(who.pid().get().to_string());
         let cgroup = self.cgroup(&mut budget, &dir)?;
         let sandbox = self.sandbox(&mut budget, &dir)?;
         // Inside a sandbox the image path is a path of another mount namespace, so the host's
@@ -114,13 +114,13 @@ impl<P: ProcFs> Prober<P> {
     fn text(
         &self,
         budget: &mut Budget,
-        rel: &Path,
+        path: &Path,
         what: &'static str,
     ) -> Result<String, ProbeError> {
         budget.spend(what)?;
         let bytes = self
             .fs
-            .read_capped(rel, PROBE_READ_CAP)
+            .read_capped(path, PROBE_READ_CAP)
             .map_err(|e| read_error(what, e))?;
         String::from_utf8(bytes).map_err(|_| ProbeError::Malformed { what })
     }
@@ -153,7 +153,7 @@ impl<P: ProcFs> Prober<P> {
     fn exe(&self, dir: &Path) -> Result<Exe, ProbeError> {
         let what = "the process's image";
         let link = dir.join("exe");
-        let target = match self.fs.readlink(&link) {
+        let target = match self.fs.read_link(&link) {
             Ok(target) => target,
             Err(e) if is_hiding(&e) => return Ok(Exe::Hidden),
             Err(e) => return Err(ProbeError::Unreadable { what, source: e }),
@@ -164,7 +164,7 @@ impl<P: ProcFs> Prober<P> {
             return Ok(Exe::Hidden);
         };
         // The file itself is judged by the open inode; the directories by the path they sit on.
-        let file = match self.fs.trust_of_followed(&link) {
+        let file = match self.fs.trust_of(&link, Follow::Yes) {
             Ok(trust) => trust,
             Err(e) if is_hiding(&e) => return Ok(Exe::Hidden),
             Err(e) => return Err(ProbeError::Unreadable { what, source: e }),
@@ -179,7 +179,7 @@ impl<P: ProcFs> Prober<P> {
         };
         Ok(Exe::Read {
             path,
-            trust: weaker(dirs, file),
+            trust: dirs.weaker(file),
         })
     }
 }

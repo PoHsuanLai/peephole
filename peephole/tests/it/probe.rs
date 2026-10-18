@@ -176,8 +176,7 @@ fn flatpak_metadata_makes_a_flatpak_sandbox_and_hides_the_host_path() {
     assert_eq!(
         facts.sandbox,
         SandboxFacts::Flatpak {
-            app: "org.mozilla.firefox".into(),
-            instance: "5".into()
+            app: "org.mozilla.firefox".into()
         }
     );
     assert_eq!(facts.exe, Exe::Hidden);

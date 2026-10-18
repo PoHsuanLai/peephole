@@ -237,7 +237,6 @@ mod with_feature {
         // A sandbox that disagrees with its cgroup is unverified, not a dev service.
         f.sandbox = SandboxFacts::Flatpak {
             app: "org.example.App".into(),
-            instance: "1".into(),
         };
         assert_eq!(
             judge(&f, &table),

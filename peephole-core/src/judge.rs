@@ -158,5 +158,5 @@ fn unit_is_real(facts: &Facts, row: &Row) -> UnitCheck {
 }
 
 fn root_fragment(unit: &UnitFacts) -> bool {
-    matches!(unit.fragment, Fragment::RootOwned(_))
+    matches!(unit.fragment, Fragment::RootOwned)
 }

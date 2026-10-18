@@ -3,7 +3,7 @@
 
 use crate::error::LoadError;
 use crate::procfs::ProcFs;
-use crate::walk::{dirs_trust, weaker};
+use crate::walk::path_trust;
 use peephole_core::{FileTrust, Table};
 use std::io;
 use std::path::{Path, PathBuf};
@@ -67,9 +67,8 @@ pub(crate) fn unreadable(path: &Path, source: io::Error) -> LoadError {
 }
 
 fn read_table<P: ProcFs>(fs: &P, path: &Path) -> Result<Table, LoadError> {
-    let file = fs.trust_of(path).map_err(|e| unreadable(path, e))?;
-    let dirs = dirs_trust(fs, path).map_err(|e| unreadable(path, e))?;
-    if weaker(dirs, file) != FileTrust::RootOnly {
+    let trust = path_trust(fs, path).map_err(|e| unreadable(path, e))?;
+    if trust != FileTrust::RootOnly {
         return Err(LoadError::NotRootOnly {
             path: path.display().to_string(),
         });
@@ -84,7 +83,7 @@ fn read_table<P: ProcFs>(fs: &P, path: &Path) -> Result<Table, LoadError> {
 /// The text of the table file `path`, within [`TABLE_FILE_CAP`] and UTF-8.
 pub(crate) fn read_text<P: ProcFs>(fs: &P, path: &Path) -> Result<String, LoadError> {
     let bytes = fs
-        .read_file_capped(path, TABLE_FILE_CAP)
+        .read_capped(path, TABLE_FILE_CAP)
         .map_err(|e| unreadable(path, e))?;
     String::from_utf8(bytes).map_err(|_| {
         unreadable(

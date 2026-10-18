@@ -29,8 +29,7 @@ fn flatpak_metadata_names_an_app_or_nobody() {
     assert_eq!(
         parse_flatpak_info(info),
         Some(SandboxFacts::Flatpak {
-            app: "org.mozilla.firefox".into(),
-            instance: "99".into()
+            app: "org.mozilla.firefox".into()
         })
     );
     assert_eq!(parse_flatpak_info("[Instance]\ninstance-id=1\n"), None);

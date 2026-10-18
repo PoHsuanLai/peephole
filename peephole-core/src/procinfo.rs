@@ -17,11 +17,11 @@ pub fn parse_fdinfo_pid(fdinfo: &str) -> Option<Pid> {
     Pid::new(line.trim().parse().ok()?)
 }
 
-/// What a Flatpak `.flatpak-info` key file states: `[Application] name` and
-/// `[Instance] instance-id`. `None` when it names no application.
+/// What a Flatpak `.flatpak-info` key file states: `[Application] name`. `None` when it names
+/// no application.
 pub fn parse_flatpak_info(info: &str) -> Option<SandboxFacts> {
     let mut section = "";
-    let (mut app, mut instance) = (None, None);
+    let mut app = None;
     for line in info.lines().map(str::trim) {
         if let Some(name) = line.strip_prefix('[').and_then(|l| l.strip_suffix(']')) {
             section = name;
@@ -32,13 +32,11 @@ pub fn parse_flatpak_info(info: &str) -> Option<SandboxFacts> {
         };
         match (section, key.trim()) {
             ("Application", "name") => app = Some(value.trim().to_owned()),
-            ("Instance", "instance-id") => instance = Some(value.trim().to_owned()),
             _ => {}
         }
     }
     Some(SandboxFacts::Flatpak {
         app: app.filter(|a| !a.is_empty())?,
-        instance: instance.unwrap_or_default(),
     })
 }
 

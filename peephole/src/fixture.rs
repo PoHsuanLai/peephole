@@ -3,7 +3,7 @@
 
 #[cfg(feature = "dev-rows")]
 use crate::devfile::{NodeInfo, NodeKind};
-use crate::procfs::ProcFs;
+use crate::procfs::{Follow, ProcFs};
 use peephole_core::{FileTrust, Pid};
 #[cfg(feature = "dev-rows")]
 use peephole_core::{Uid, Writer};
@@ -32,8 +32,7 @@ enum Node {
     Denied,
 }
 
-/// An in-memory tree. Paths are absolute; `/proc/<pid>/...` is what the prober reads as
-/// proc-relative `<pid>/...`.
+/// An in-memory tree. Paths are absolute; `/proc` is its [`ProcFs::proc_root`].
 #[derive(Debug, Clone, Default)]
 pub struct FixtureProc {
     nodes: BTreeMap<PathBuf, Node>,
@@ -184,10 +183,6 @@ impl FixtureProc {
             .ok_or_else(|| io::Error::from(io::ErrorKind::NotFound))
     }
 
-    fn proc_node(&self, rel: &Path) -> io::Result<&Node> {
-        self.node(&Path::new(PROC).join(rel))
-    }
-
     fn trust_of_node(&self, node: &Node) -> io::Result<FileTrust> {
         match node {
             Node::File { trust, .. } | Node::Dir { trust } => Ok(*trust),
@@ -215,36 +210,33 @@ fn bytes_of(node: &Node, cap: u64) -> io::Result<Vec<u8>> {
 }
 
 impl ProcFs for FixtureProc {
-    fn read_capped(&self, rel: &Path, cap: u64) -> io::Result<Vec<u8>> {
-        bytes_of(self.proc_node(rel)?, cap)
+    fn proc_root(&self) -> &Path {
+        Path::new(PROC)
     }
 
-    fn readlink(&self, rel: &Path) -> io::Result<PathBuf> {
-        match self.proc_node(rel)? {
+    fn read_capped(&self, path: &Path, cap: u64) -> io::Result<Vec<u8>> {
+        bytes_of(self.node(path)?, cap)
+    }
+
+    fn read_link(&self, path: &Path) -> io::Result<PathBuf> {
+        match self.node(path)? {
             Node::Link { target, .. } => Ok(target.clone()),
             Node::Denied => Err(io::Error::from(io::ErrorKind::PermissionDenied)),
             _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),
         }
     }
 
-    fn trust_of(&self, abs: &Path) -> io::Result<FileTrust> {
-        self.trust_of_node(self.node(abs)?)
+    /// The tree reads a link's trust through it either way: `follow` makes no difference here.
+    fn trust_of(&self, path: &Path, _follow: Follow) -> io::Result<FileTrust> {
+        self.trust_of_node(self.node(path)?)
     }
 
-    fn trust_of_followed(&self, rel: &Path) -> io::Result<FileTrust> {
-        self.trust_of_node(self.proc_node(rel)?)
-    }
-
-    fn read_file_capped(&self, abs: &Path, cap: u64) -> io::Result<Vec<u8>> {
-        bytes_of(self.node(abs)?, cap)
-    }
-
-    fn list_dir(&self, abs: &Path) -> io::Result<Vec<PathBuf>> {
-        match self.node(abs)? {
+    fn list_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
+        match self.node(path)? {
             Node::Dir { .. } => Ok(self
                 .nodes
                 .keys()
-                .filter(|p| p.parent() == Some(abs))
+                .filter(|p| p.parent() == Some(path))
                 .cloned()
                 .collect()),
             _ => Err(io::Error::from(io::ErrorKind::InvalidInput)),

@@ -55,10 +55,7 @@ fn a_process_that_exits_reads_as_gone_and_cannot_be_pinned_again() {
     child.kill().expect("kill the child by handle");
     child.wait().expect("reap it");
     assert_eq!(held.alive(), Alive::Gone);
-    assert!(matches!(
-        Pinned::from_pid(pid),
-        Err(PinError::PeerGone)
-    ));
+    assert!(matches!(Pinned::from_pid(pid), Err(PinError::PeerGone)));
 }
 
 #[test]

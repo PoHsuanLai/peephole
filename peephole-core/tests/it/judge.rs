@@ -5,7 +5,6 @@ use peephole_core::{
     AppKey, DropIns, Engine, Exe, FileTrust, Fragment, LOADER_VARIABLES, Loader, Pin, Proof,
     RoleName, SandboxFacts, Standing, Transient, WhyNot, Writer, judge,
 };
-use std::path::PathBuf;
 
 const SILL_IMAGE: &str = "/opt/quire/releases/1.2.3/bin/sill";
 
@@ -50,11 +49,7 @@ fn the_real_unit_is_full() {
 fn anything_the_manager_cannot_confirm_stops_at_exe() {
     let exe = service("shell", Proof::Exe, Pin::AtConnect);
     // The definition comes from a user-writable place (a user-level override of the unit).
-    assert_eq!(
-        with_unit(|u| u.fragment =
-            Fragment::Writable(PathBuf::from("/home/p/.config/systemd/user/sill.service"))),
-        exe
-    );
+    assert_eq!(with_unit(|u| u.fragment = Fragment::Writable), exe);
     assert_eq!(with_unit(|u| u.fragment = Fragment::Missing), exe);
     // A drop-in the person can write; a root-owned one is the administrator's.
     assert_eq!(with_unit(|u| u.drop_ins = DropIns::Writable), exe);
@@ -250,10 +245,7 @@ fn an_empty_table_makes_nobody_a_service() {
 
 fn flatpak(cgroup: &str, app: &str) -> Standing {
     let mut f = facts(cgroup, Exe::Hidden);
-    f.sandbox = SandboxFacts::Flatpak {
-        app: app.into(),
-        instance: "7".into(),
-    };
+    f.sandbox = SandboxFacts::Flatpak { app: app.into() };
     judge(&f, &table())
 }
 

@@ -1,6 +1,6 @@
 //! The ownership walk: a path is only as trustworthy as the least-trusted directory above it.
 
-use crate::procfs::ProcFs;
+use crate::procfs::{Follow, ProcFs};
 use peephole_core::FileTrust;
 use std::io;
 use std::path::Path;
@@ -18,7 +18,7 @@ pub fn dirs_trust<P: ProcFs + ?Sized>(fs: &P, path: &Path) -> io::Result<FileTru
     }
     above.reverse();
     for dir in above {
-        match fs.trust_of(dir)? {
+        match fs.trust_of(dir, Follow::No)? {
             FileTrust::RootOnly => {}
             writable => return Ok(writable),
         }
@@ -26,10 +26,9 @@ pub fn dirs_trust<P: ProcFs + ?Sized>(fs: &P, path: &Path) -> io::Result<FileTru
     Ok(FileTrust::RootOnly)
 }
 
-/// The weaker of two trusts: the first that is writable, else root-only.
-pub fn weaker(first: FileTrust, second: FileTrust) -> FileTrust {
-    match first {
-        FileTrust::RootOnly => second,
-        writable => writable,
-    }
+/// The trust of `path` itself and of every directory above it: the weaker of the two. Either
+/// look failing fails the whole (`Err(InvalidData)` for a path deeper than [`WALK_MAX`]).
+pub fn path_trust<P: ProcFs + ?Sized>(fs: &P, path: &Path) -> io::Result<FileTrust> {
+    let file = fs.trust_of(path, Follow::No)?;
+    Ok(dirs_trust(fs, path)?.weaker(file))
 }
