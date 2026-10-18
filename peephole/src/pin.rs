@@ -66,27 +66,28 @@ pub(crate) fn open_pidfd(pid: Pid) -> Result<OwnedFd, PinError> {
 
 impl Pinned {
     /// Holds process `pid`, whose effective user the caller already knows (the bus states it):
-    /// the pidfd is opened by number, so the pin is whatever `how` says the caller can vouch for.
-    pub fn from_pid_with_uid(pid: Pid, uid: Uid, how: Pin) -> Result<Pinned, PinError> {
+    /// the pidfd is opened by number, so the pin is [`Pin::Reopened`] and nothing firmer.
+    pub fn from_pid_with_uid(pid: Pid, uid: Uid) -> Result<Pinned, PinError> {
         let fd = open_pidfd(pid)?;
         Ok(Pinned {
             pid,
             uid,
-            pin: how,
+            pin: Pin::Reopened,
             hold: Hold::Fd(fd),
         })
     }
 
     /// Holds process `pid` and reads its effective user from `/proc/<pid>/status` after the
-    /// pidfd is open. A process that exits meanwhile is [`PinError::PeerGone`].
-    pub fn from_pid(pid: Pid, how: Pin) -> Result<Pinned, PinError> {
+    /// pidfd is open. A process that exits meanwhile is [`PinError::PeerGone`]. The pin is
+    /// [`Pin::Reopened`].
+    pub fn from_pid(pid: Pid) -> Result<Pinned, PinError> {
         let fd = open_pidfd(pid)?;
         let status = proc_text(&format!("/proc/{pid}/status")).map_err(PinError::Proc)?;
         let uid = parse_status_euid(&status).ok_or(PinError::Mismatch)?;
         let held = Pinned {
             pid,
             uid,
-            pin: how,
+            pin: Pin::Reopened,
             hold: Hold::Fd(fd),
         };
         match held.alive() {

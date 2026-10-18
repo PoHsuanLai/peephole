@@ -42,6 +42,14 @@ Departures from the plan, standing facts and open items. An entry names the cond
     because `ProcFs` has no notion of the current user. `RealProc::info_of` is read, not run in a
     test (no scratch-directory test in this crate).
 
+11. **A pin is never a caller's claim (P4).** `Pinned::from_pid` and `from_pid_with_uid` no
+    longer take a `Pin`: they open the pidfd by number, so the pin is always `Reopened`. Only
+    `Pinned::of_stream` and `Pinned::from_fd`, which hold a descriptor the kernel or the bus made at
+    connect time, give `AtConnect`. The rule: **a `Pin` value is produced by the code that holds the
+    process and never accepted as an argument by a public constructor** (the `fake` seam
+    `Pinned::introduced` is the one place a test forges it). A `PinNeed::AtConnect` requirement can
+    therefore not be met by a caller that merely says so.
+
 ## Open items
 
 1. **Snap from a socket.** The Snap label comes only from the bus's `LinuxSecurityLabel`; `SO_PEERSEC`

@@ -35,10 +35,10 @@ fn a_socketpairs_peer_is_this_process_and_is_alive() {
 
 #[test]
 fn a_pid_is_held_and_its_user_read_from_proc() {
-    let held = Pinned::from_pid(own_pid(), Pin::Reopened).expect("pinned");
+    let held = Pinned::from_pid(own_pid()).expect("pinned");
     assert_eq!(held.uid(), own_uid());
     assert_eq!(held.alive(), Alive::Yes);
-    let given = Pinned::from_pid_with_uid(own_pid(), Uid::new(7), Pin::Reopened).expect("pinned");
+    let given = Pinned::from_pid_with_uid(own_pid(), Uid::new(7)).expect("pinned");
     assert_eq!(given.uid(), Uid::new(7));
 }
 
@@ -50,13 +50,13 @@ fn a_process_that_exits_reads_as_gone_and_cannot_be_pinned_again() {
         .spawn()
         .expect("a sleep child");
     let pid = Pid::new(child.id()).expect("its pid");
-    let held = Pinned::from_pid(pid, Pin::Reopened).expect("pinned");
+    let held = Pinned::from_pid(pid).expect("pinned");
     assert_eq!(held.alive(), Alive::Yes);
     child.kill().expect("kill the child by handle");
     child.wait().expect("reap it");
     assert_eq!(held.alive(), Alive::Gone);
     assert!(matches!(
-        Pinned::from_pid(pid, Pin::Reopened),
+        Pinned::from_pid(pid),
         Err(PinError::PeerGone)
     ));
 }

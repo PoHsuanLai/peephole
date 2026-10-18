@@ -8,7 +8,7 @@ use crate::timeout::bounded;
 use peephole::{Alive, Pinned, Prober, ProcFs, RealProc};
 use peephole_core::procinfo::parse_security_label;
 use peephole_core::{
-    Facts, Pid, Pin, Proof, Refused, Requirement, SandboxFacts, Standing, Table, Uid, UnitFacts,
+    Facts, Pid, Proof, Refused, Requirement, SandboxFacts, Standing, Table, Uid, UnitFacts,
     UnitName, WhyNot, judge,
 };
 use std::os::fd::AsFd;
@@ -285,7 +285,7 @@ impl<P: ProcFs + 'static, U: UnitSource> BusPeers<P, U> {
         let held = match offered {
             Some(fd) => Pinned::from_fd(fd, pid, uid)?,
             None => {
-                let held = Pinned::from_pid_with_uid(pid, uid, Pin::Reopened)?;
+                let held = Pinned::from_pid_with_uid(pid, uid)?;
                 let again = self.credentials(&bus, &name).await?;
                 let same = again.process_id() == creds.process_id()
                     && again.unix_user_id() == creds.unix_user_id();
