@@ -68,7 +68,7 @@ impl<P: ProcFs> ManagerLink<P> {
         &self,
         path: &OwnedObjectPath,
         interface: &'static str,
-    ) -> Result<HashMap<String, OwnedValue>, UnitError> {
+    ) -> Result<Props, UnitError> {
         let proxy = PropertiesProxy::builder(&self.connection)
             .destination(SYSTEMD)
             .map_err(UnitError::Bus)?
@@ -82,6 +82,7 @@ impl<P: ProcFs> ManagerLink<P> {
             .await
             .map_err(|_| UnitError::Timeout)?
             .map_err(|e| UnitError::Bus(e.into()))
+            .map(Props)
     }
 
     /// The trust of `path` and of every directory above it. A path that cannot be looked at is
@@ -123,31 +124,31 @@ impl<P: ProcFs> UnitSource for ManagerLink<P> {
     async fn unit(&self, name: &UnitName) -> Result<UnitFacts, UnitError> {
         let path = self.unit_path(name).await?;
         let unit = self.properties(&path, UNIT_INTERFACE).await?;
-        if text(&unit, "LoadState") != Some("loaded") {
+        if unit.text("LoadState") != Some("loaded") {
             return Err(UnitError::NotLoaded);
         }
-        if text(&unit, "Id") != Some(name.as_str()) {
+        if unit.text("Id") != Some(name.as_str()) {
             return Err(UnitError::Malformed(
                 "the unit's Id is not the name asked for",
             ));
         }
         let service = match name.as_str().ends_with(".service") {
             true => self.properties(&path, SERVICE_INTERFACE).await?,
-            false => HashMap::new(),
+            false => Props::empty(),
         };
         Ok(UnitFacts {
             name: name.clone(),
-            main_pid: number(&service, "MainPID").and_then(Pid::new),
-            fragment: self.fragment(text(&unit, "FragmentPath").unwrap_or_default()),
-            drop_ins: self.drop_ins(&texts(&unit, "DropInPaths")),
+            main_pid: service.number("MainPID").and_then(Pid::new),
+            fragment: self.fragment(unit.text("FragmentPath").unwrap_or_default()),
+            drop_ins: self.drop_ins(&unit.texts("DropInPaths").unwrap_or_default()),
             // A manager that does not say is assumed to have made the unit at run time.
-            transient: match flag(&unit, "Transient") {
+            transient: match unit.flag("Transient") {
                 Some(false) => Transient::No,
                 _ => Transient::Yes,
             },
             exec: first_exec(&service),
             // A manager that does not say unsets nothing.
-            loader: match strings(&service, "UnsetEnvironment") {
+            loader: match service.texts("UnsetEnvironment") {
                 Some(unset) => Loader::from_unset(&unset),
                 None => Loader::unknown(),
             },
@@ -155,56 +156,61 @@ impl<P: ProcFs> UnitSource for ManagerLink<P> {
     }
 }
 
-fn value<'a>(map: &'a HashMap<String, OwnedValue>, key: &str) -> Option<&'a Value<'static>> {
-    map.get(key).map(|v| &**v)
-}
+/// The properties of one manager interface, read by name and type; a property that is absent or
+/// of another type reads as `None`.
+struct Props(HashMap<String, OwnedValue>);
 
-fn text<'a>(map: &'a HashMap<String, OwnedValue>, key: &str) -> Option<&'a str> {
-    match value(map, key)? {
-        Value::Str(s) => Some(s.as_str()),
-        _ => None,
+impl Props {
+    fn empty() -> Props {
+        Props(HashMap::new())
     }
-}
 
-fn texts(map: &HashMap<String, OwnedValue>, key: &str) -> Vec<String> {
-    match value(map, key) {
-        Some(Value::Array(items)) => items
-            .inner()
-            .iter()
-            .filter_map(|item| match item {
-                Value::Str(s) => Some(s.as_str().to_owned()),
-                _ => None,
-            })
-            .collect(),
-        _ => Vec::new(),
+    fn value(&self, key: &str) -> Option<&Value<'static>> {
+        self.0.get(key).map(|v| &**v)
     }
-}
 
-/// An `as` property; `None` when it is absent or not an array of strings.
-fn strings(map: &HashMap<String, OwnedValue>, key: &str) -> Option<Vec<String>> {
-    match value(map, key)? {
-        Value::Array(_) => Some(texts(map, key)),
-        _ => None,
+    fn text(&self, key: &str) -> Option<&str> {
+        match self.value(key)? {
+            Value::Str(s) => Some(s.as_str()),
+            _ => None,
+        }
     }
-}
 
-fn flag(map: &HashMap<String, OwnedValue>, key: &str) -> Option<bool> {
-    match value(map, key)? {
-        Value::Bool(b) => Some(*b),
-        _ => None,
+    /// An `as` property; `None` when it is absent or not an array of strings.
+    fn texts(&self, key: &str) -> Option<Vec<String>> {
+        match self.value(key)? {
+            Value::Array(items) => Some(
+                items
+                    .inner()
+                    .iter()
+                    .filter_map(|item| match item {
+                        Value::Str(s) => Some(s.as_str().to_owned()),
+                        _ => None,
+                    })
+                    .collect(),
+            ),
+            _ => None,
+        }
     }
-}
 
-fn number(map: &HashMap<String, OwnedValue>, key: &str) -> Option<u32> {
-    match value(map, key)? {
-        Value::U32(n) => Some(*n),
-        _ => None,
+    fn flag(&self, key: &str) -> Option<bool> {
+        match self.value(key)? {
+            Value::Bool(b) => Some(*b),
+            _ => None,
+        }
+    }
+
+    fn number(&self, key: &str) -> Option<u32> {
+        match self.value(key)? {
+            Value::U32(n) => Some(*n),
+            _ => None,
+        }
     }
 }
 
 /// The program of the first `ExecStart` entry (`a(sasbttttuii)`: the path is the first field).
-fn first_exec(service: &HashMap<String, OwnedValue>) -> Option<ExePath> {
-    let Some(Value::Array(entries)) = value(service, "ExecStart") else {
+fn first_exec(service: &Props) -> Option<ExePath> {
+    let Some(Value::Array(entries)) = service.value("ExecStart") else {
         return None;
     };
     match entries.inner().first()? {
