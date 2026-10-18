@@ -30,9 +30,8 @@ pub fn parse_flatpak_info(info: &str) -> Option<SandboxFacts> {
         let Some((key, value)) = line.split_once('=') else {
             continue;
         };
-        match (section, key.trim()) {
-            ("Application", "name") => app = Some(value.trim().to_owned()),
-            _ => {}
+        if let ("Application", "name") = (section, key.trim()) {
+            app = Some(value.trim().to_owned());
         }
     }
     Some(SandboxFacts::Flatpak {
