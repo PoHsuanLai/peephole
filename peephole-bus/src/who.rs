@@ -212,9 +212,8 @@ impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
         let ManagerCheck::Verified(need) = &self.manager else {
             return true;
         };
-        let owner = match self.owner_name(SYSTEMD).await {
-            Ok(owner) => owner,
-            Err(_) => return false,
+        let Ok(owner) = self.owner_name(SYSTEMD).await else {
+            return false;
         };
         let Ok(observed) = self.observe(&owner).await else {
             return false;
@@ -319,8 +318,9 @@ impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
 }
 
 fn bus_error(error: fdo::Error) -> WhoError {
-    match error {
-        fdo::Error::NameHasNoOwner(_) => WhoError::NoSuchPeer,
-        other => WhoError::Bus(other.into()),
+    if let fdo::Error::NameHasNoOwner(_) = error {
+        WhoError::NoSuchPeer
+    } else {
+        WhoError::Bus(error.into())
     }
 }
