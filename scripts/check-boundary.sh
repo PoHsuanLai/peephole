@@ -46,6 +46,15 @@ for manifest in peephole-core/Cargo.toml peephole/Cargo.toml peephole-bus/Cargo.
   fi
 done
 
+# Without its default `toml` feature peephole-core reaches no TOML parser, so a vocabulary crate
+# (porter-core, which re-exports CgroupPath) can name its types and stay parser-free.
+if cargo tree -p peephole-core --no-default-features -e normal,build -i toml 2>/dev/null | grep -q .; then
+  echo "BOUNDARY: peephole-core without default features reaches toml"
+  fail=1
+else
+  echo "boundary holds: peephole-core --no-default-features reaches no toml"
+fi
+
 if [ "$fail" -ne 0 ]; then
   exit 1
 fi

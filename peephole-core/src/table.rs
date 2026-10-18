@@ -2,8 +2,10 @@
 //! root-owned file. A row with a `unit` is a service; a row without one is a program known by its
 //! image alone. Reading the file is the I/O crate's job; this is the text format and the rows.
 
+#[cfg(feature = "toml")]
 use crate::error::{IdError, RowFault, TableError};
 use crate::ids::{AppKey, ExePath, ExePattern, RoleName, UnitName};
+#[cfg(feature = "toml")]
 use serde::Deserialize;
 
 /// The longest table text read. A real table is a few kilobytes.
@@ -51,6 +53,7 @@ impl Row {
     }
 }
 
+#[cfg(feature = "toml")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawFile {
@@ -58,6 +61,7 @@ struct RawFile {
     peer: Vec<RawRow>,
 }
 
+#[cfg(feature = "toml")]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct RawRow {
@@ -69,6 +73,7 @@ struct RawRow {
     name: Option<String>,
 }
 
+#[cfg(feature = "toml")]
 impl RawRow {
     fn typed(&self) -> Result<Row, RowFault> {
         if self.exe.is_empty() {
@@ -114,7 +119,9 @@ impl Table {
     /// The table written as `text`: `[[peer]]` rows with `app`, `exe` (a non-empty list), `role`
     /// and optionally `unit` and `name`. A file is refused whole for: an unknown key, a row
     /// without `exe`, a relative or `..` path, a `**` or two `*` in a segment, a malformed id,
-    /// or two rows naming one unit.
+    /// or two rows naming one unit. Only with feature `toml` (on by default): a crate that names the
+    /// rows but never parses a file turns it off and reaches no TOML parser.
+    #[cfg(feature = "toml")]
     pub fn from_toml(text: &str) -> Result<Table, TableError> {
         if text.len() > TABLE_BYTES_MAX {
             return Err(TableError::TooLong {
