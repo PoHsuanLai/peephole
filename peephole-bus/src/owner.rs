@@ -2,7 +2,6 @@
 
 use crate::error::WhoError;
 use crate::manager::UnitSource;
-use crate::offload::Offload;
 use crate::timeout::bounded;
 use crate::who::BusPeers;
 use peephole::ProcFs;
@@ -29,7 +28,7 @@ impl OwnerWatch {
     }
 }
 
-impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
+impl<P: ProcFs + 'static, U: UnitSource> BusPeers<P, U> {
     /// The unique name that owns the well-known `name`, once its process meets one of `need`. A
     /// name nobody owns is a refusal, so a squatter that is absent cannot pass.
     pub async fn owner_of(

@@ -97,7 +97,7 @@ malformed id, two rows for one unit, more than 256 rows or 256 KiB. **peephole r
 - `peephole`: `Pinned::{of_stream, from_pid, from_pid_with_uid, from_fd, alive, pidfd}`,
   `Prober::{probe, stand, stand_stream}`, `ProcFs`, `RealProc`, `TableFiles`.
 - `peephole-bus`: `BusPeers::{who, require, require_or_deny, owner_of, watch_owner}`,
-  `ManagerCheck`, `UnitSource`, `ManagerLink`, `Offload` (`Inline`, `Tokio`), `access_denied`,
+  `ManagerCheck`, `UnitSource`, `ManagerLink`, `Offload` (an enum: `Inline`, `Tokio`), `access_denied`,
   `BUS_TIMEOUT` (2 s on every bus call).
 
 No `bool` fields or parameters; enums that will grow are `#[non_exhaustive]`; errors are typed; a

@@ -3,7 +3,7 @@
 
 use crate::error::{WhoError, access_denied};
 use crate::manager::{ManagerLink, SYSTEMD, UnitSource};
-use crate::offload::{Inline, Offload};
+use crate::offload::Offload;
 use crate::timeout::bounded;
 use peephole::{Alive, Pinned, Prober, ProcFs, RealProc};
 use peephole_core::procinfo::parse_security_label;
@@ -44,12 +44,12 @@ struct Observed {
 
 /// Identifies bus senders. Cheap to share by reference; all methods take `&self`.
 #[derive(Debug)]
-pub struct BusPeers<P = RealProc, O = Inline, U = ManagerLink<P>> {
+pub struct BusPeers<P = RealProc, U = ManagerLink<P>> {
     pub(crate) connection: Connection,
     prober: Arc<Prober<P>>,
     table: Arc<Table>,
     units: U,
-    offload: O,
+    offload: Offload,
     manager: ManagerCheck,
     #[cfg(feature = "fake")]
     introduced: std::sync::Mutex<std::collections::HashMap<String, Standing>>,
@@ -63,7 +63,7 @@ impl BusPeers {
     }
 }
 
-impl<P: ProcFs + Clone + 'static> BusPeers<P, Inline, ManagerLink<P>> {
+impl<P: ProcFs + Clone + 'static> BusPeers<P, ManagerLink<P>> {
     /// As [`BusPeers::new`], reading `fs` instead of the system's `/proc` (a fixture tree in tests).
     pub fn with_proc(connection: Connection, table: Table, manager: ManagerCheck, fs: P) -> Self {
         let units = ManagerLink::new(connection.clone(), fs.clone());
@@ -72,7 +72,7 @@ impl<P: ProcFs + Clone + 'static> BusPeers<P, Inline, ManagerLink<P>> {
             prober: Arc::new(Prober::new(fs)),
             table: Arc::new(table),
             units,
-            offload: Inline,
+            offload: Offload::Inline,
             manager,
             #[cfg(feature = "fake")]
             introduced: Default::default(),
@@ -80,23 +80,14 @@ impl<P: ProcFs + Clone + 'static> BusPeers<P, Inline, ManagerLink<P>> {
     }
 }
 
-impl<P, O, U> BusPeers<P, O, U> {
+impl<P, U> BusPeers<P, U> {
     /// The same, running the blocking probe through `offload`.
-    pub fn with_offload<O2: Offload>(self, offload: O2) -> BusPeers<P, O2, U> {
-        BusPeers {
-            connection: self.connection,
-            prober: self.prober,
-            table: self.table,
-            units: self.units,
-            offload,
-            manager: self.manager,
-            #[cfg(feature = "fake")]
-            introduced: self.introduced,
-        }
+    pub fn with_offload(self, offload: Offload) -> Self {
+        BusPeers { offload, ..self }
     }
 
     /// The same, taking unit facts from `units` instead of the manager on the bus.
-    pub fn with_units<U2: UnitSource>(self, units: U2) -> BusPeers<P, O, U2> {
+    pub fn with_units<U2: UnitSource>(self, units: U2) -> BusPeers<P, U2> {
         BusPeers {
             connection: self.connection,
             prober: self.prober,
@@ -133,7 +124,7 @@ impl<P, O, U> BusPeers<P, O, U> {
     }
 }
 
-impl<P: ProcFs + 'static, O: Offload, U: UnitSource> BusPeers<P, O, U> {
+impl<P: ProcFs + 'static, U: UnitSource> BusPeers<P, U> {
     /// Who the sender is: its pin, the manager's facts about its unit when a row names one, and
     /// the judgement. Every bus call is bounded; any failure to identify is an error, and a caller
     /// treats an error as an unknown peer.

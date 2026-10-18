@@ -17,9 +17,7 @@ mod who;
 
 pub use error::{UnitError, WhoError, access_denied};
 pub use manager::{DROP_INS_MAX, ManagerLink, SYSTEMD, SYSTEMD_MANAGER, SYSTEMD_PATH, UnitSource};
-#[cfg(feature = "tokio")]
-pub use offload::Tokio;
-pub use offload::{Cancelled, Inline, Offload};
+pub use offload::{Cancelled, Offload};
 pub use owner::OwnerWatch;
 pub use peephole;
 pub use peephole_core;
