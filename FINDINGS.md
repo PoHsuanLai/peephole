@@ -20,6 +20,11 @@ Departures from the plan, standing facts and open items. An entry names the cond
 4. **The manager's own identity is checked by `BusPeers`, not by `ManagerLink`.** `ManagerCheck::Verified`
    asks `owner_of(org.freedesktop.systemd1)` to hold a requirement (the desktop uses role `manager`,
    `Exe`); `Unchecked` is for a private test bus. A custom `UnitSource` thus gets the same check.
+   The image is not always readable: systemd 254 and later gives user managers `CAP_WAKE_ALARM`, and
+   the kernel then hides `/proc/<pid>/exe` from every process of that user without it (found on the
+   first real login, Fedora 44). So a manager whose image does not prove it is believed when process
+   1, as the owner of `org.freedesktop.systemd1` on the system bus, names it the main process of
+   `user@<uid>.service` and it is still that process (`attest.rs`).
 5. **`ExecStart` is matched against the row's patterns, not equal to the image** (ARCHITECTURE 3).
 6. **`FixtureProc` is behind `fake`.** The plan listed it as public; as a test helper it follows the
    convention "test helpers are not API".

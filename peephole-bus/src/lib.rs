@@ -8,6 +8,7 @@
 //! Every call to the bus has a two-second bound ([`BUS_TIMEOUT`]) and fails closed. zbus runs on
 //! its own executor by default (feature `async-io`); a tokio program enables `tokio` instead.
 
+mod attest;
 mod error;
 mod manager;
 mod offload;

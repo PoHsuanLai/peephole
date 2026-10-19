@@ -88,6 +88,38 @@ fn the_shell_is_full_when_the_manager_confirms_its_unit() {
     assert_eq!(proof_of(&standing), Some(Proof::Full), "{standing:?}");
 }
 
+/// The manager's image is not one the table names (as when the kernel hides a user manager's image
+/// from its own user): only the system manager's word that the bus's manager is the user's manager
+/// lets its answers count.
+#[test]
+fn a_manager_whose_image_does_not_prove_it_counts_only_when_the_system_manager_names_it() {
+    let other = Pid::new(std::process::id() + 1).expect("a pid");
+    let cases = [
+        ("named", Some(me()), Proof::Full),
+        ("another process named", Some(other), Proof::Exe),
+        ("nothing said", None, Proof::Exe),
+    ];
+    for (name, answer, want) in cases {
+        let standing = zbus::block_on(async {
+            let bus = PrivateBus::start();
+            let (service, asker, manager) = (
+                bus.connect().await,
+                bus.connect().await,
+                bus.connect().await,
+            );
+            serve(&manager, healthy()).await;
+            let table = Table::from_toml(TABLE).expect("a table");
+            let need = Requirement::new(RoleName::new("manager").expect("a role"), Proof::Exe);
+            BusPeers::with_proc(asker, table, ManagerCheck::Verified(need), tree())
+                .with_user_manager(answer)
+                .who(&name_of(&service))
+                .await
+                .expect("the sender is identified")
+        });
+        assert_eq!(proof_of(&standing), Some(want), "{name}: {standing:?}");
+    }
+}
+
 #[test]
 fn without_a_manager_the_shell_tops_out_at_exe() {
     let standing = zbus::block_on(who_with(None, tree()));

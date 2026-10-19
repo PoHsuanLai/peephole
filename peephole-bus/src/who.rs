@@ -1,6 +1,7 @@
 //! Who is the sender of a bus message: the pinned process behind its connection, its unit as the
 //! manager states it, and the judgement against the table.
 
+use crate::attest::Attest;
 use crate::error::{WhoError, access_denied};
 use crate::manager::{ManagerLink, SYSTEMD, UnitSource};
 use crate::offload::Offload;
@@ -51,6 +52,7 @@ pub struct BusPeers<P = RealProc, U = ManagerLink<P>> {
     units: U,
     offload: Offload,
     manager: ManagerCheck,
+    attest: Attest,
     #[cfg(feature = "fake")]
     introduced: std::sync::Mutex<std::collections::HashMap<String, Standing>>,
 }
@@ -74,6 +76,7 @@ impl<P: ProcFs + Clone + 'static> BusPeers<P, ManagerLink<P>> {
             units,
             offload: Offload::Inline,
             manager,
+            attest: Attest::default(),
             #[cfg(feature = "fake")]
             introduced: Default::default(),
         }
@@ -95,8 +98,19 @@ impl<P, U> BusPeers<P, U> {
             units,
             offload: self.offload,
             manager: self.manager,
+            attest: self.attest,
             #[cfg(feature = "fake")]
             introduced: self.introduced,
+        }
+    }
+
+    /// The same, with `answer` standing for the system manager's word on who the user manager is
+    /// (`None`: it says nothing). For tests on a private bus, which has no process 1 behind it.
+    #[cfg(feature = "fake")]
+    pub fn with_user_manager(self, answer: Option<Pid>) -> Self {
+        BusPeers {
+            attest: Attest::Fixed(answer),
+            ..self
         }
     }
 
@@ -201,12 +215,20 @@ impl<P: ProcFs + 'static, U: UnitSource> BusPeers<P, U> {
         let Ok(observed) = self.observe(&owner).await else {
             return false;
         };
-        let Ok(facts) = observed.facts else {
-            return false;
-        };
-        judge(&facts, &self.table)
-            .holds(std::slice::from_ref(need))
-            .is_ok()
+        let by_image = observed.facts.as_ref().is_ok_and(|facts| {
+            judge(facts, &self.table)
+                .holds(std::slice::from_ref(need))
+                .is_ok()
+        });
+        by_image || self.attested(&observed.held).await
+    }
+
+    /// Whether the system manager names `held` as its user's manager, and `held` is still that
+    /// process. The second proof of the manager, for when its image cannot be read (see
+    /// [`crate::attest`]).
+    async fn attested(&self, held: &Pinned) -> bool {
+        let named = self.attest.user_manager(held.uid()).await;
+        named == Some(held.pid()) && held.alive() == Alive::Yes
     }
 
     /// The unique name that owns `name` on the bus.
