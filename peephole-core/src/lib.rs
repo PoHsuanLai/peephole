@@ -34,3 +34,8 @@ pub use judge::judge;
 pub use requirement::Requirement;
 pub use standing::{Proof, Standing, WhyNot};
 pub use table::{NAME_MAX, Row, TABLE_BYTES_MAX, TABLE_ROWS_MAX, Table};
+
+/// The README's example, compiled and run as a doctest.
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
