@@ -6,7 +6,12 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 repository.workspace = true
-publish.workspace = true
+# Published, so porter-core (on crates.io) can name `CgroupPath`; the rest of peephole is taken by git rev.
+publish = true
+homepage = "https://github.com/PoHsuanLai/peephole"
+readme = "README.md"
+keywords = ["peer-credentials", "cgroup", "pidfd", "authorization", "linux"]
+categories = ["os::linux-apis", "authentication"]
 
 [dependencies]
 serde = { workspace = true }
