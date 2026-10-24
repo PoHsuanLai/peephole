@@ -9,6 +9,7 @@
 #[cfg(feature = "dev-rows")]
 mod devfile;
 mod error;
+mod owners;
 mod pin;
 mod probe;
 mod procfs;
@@ -26,6 +27,7 @@ pub use devfile::{NodeInfo, NodeKind};
 pub use error::{LoadError, PinError, ProbeError};
 #[cfg(feature = "fake")]
 pub use fixture::{FixtureImage, FixtureProc, FixtureProcess};
+pub use owners::OwnerView;
 pub use peephole_core;
 pub use pin::{Alive, Pinned};
 pub use probe::{PROBE_MAX_READS, PROBE_READ_CAP, Prober};

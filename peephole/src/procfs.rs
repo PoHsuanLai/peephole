@@ -3,6 +3,7 @@
 
 #[cfg(feature = "dev-rows")]
 use crate::devfile::{NodeInfo, NodeKind};
+use crate::owners::OwnerView;
 use peephole_core::Uid;
 use peephole_core::{FileTrust, Writer};
 use std::io::{self, Read};
@@ -60,8 +61,8 @@ pub fn trust_of_mode(uid: u32, mode: u32) -> FileTrust {
     }
 }
 
-fn trust_of_meta(meta: &std::fs::Metadata) -> FileTrust {
-    trust_of_mode(meta.uid(), meta.mode())
+fn trust_of_meta(meta: &std::fs::Metadata, owners: OwnerView) -> FileTrust {
+    trust_of_mode(owners.owner(meta.uid()), meta.mode())
 }
 
 fn capped(path: &Path, cap: u64) -> io::Result<Vec<u8>> {
@@ -78,23 +79,39 @@ fn capped(path: &Path, cap: u64) -> io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
-/// The real thing: a `/proc` mount and the machine's file system.
+/// The real thing: a `/proc` mount and the machine's file system, with owners read as this
+/// process's user namespace shows them ([`OwnerView`]).
 #[derive(Debug, Clone)]
 pub struct RealProc {
     root: PathBuf,
+    owners: OwnerView,
 }
 
 impl RealProc {
     /// The system's `/proc`: the one fixed path of the crate, named here and nowhere else.
     pub fn system() -> RealProc {
-        RealProc {
-            root: PathBuf::from("/proc"),
-        }
+        RealProc::at(PathBuf::from("/proc"))
     }
 
-    /// A `/proc` mounted at `root`.
+    /// A `/proc` mounted at `root`; the namespace is read from its `self/uid_map` and
+    /// `sys/kernel/overflowuid`.
     pub fn at(root: PathBuf) -> RealProc {
-        RealProc { root }
+        let read = |path: PathBuf| {
+            capped(&path, 4096)
+                .ok()
+                .and_then(|bytes| String::from_utf8(bytes).ok())
+                .unwrap_or_default()
+        };
+        let owners = OwnerView::of(
+            &read(root.join("self/uid_map")),
+            &read(root.join("sys/kernel/overflowuid")),
+        );
+        RealProc { root, owners }
+    }
+
+    /// How this process's namespace shows file owners.
+    pub fn owners(&self) -> OwnerView {
+        self.owners
     }
 }
 
@@ -116,7 +133,7 @@ impl ProcFs for RealProc {
             Follow::No => std::fs::symlink_metadata(path),
             Follow::Yes => std::fs::metadata(path),
         }
-        .map(|m| trust_of_meta(&m))
+        .map(|m| trust_of_meta(&m, self.owners))
     }
 
     fn list_dir(&self, path: &Path) -> io::Result<Vec<PathBuf>> {
@@ -135,7 +152,7 @@ impl ProcFs for RealProc {
         };
         Ok(NodeInfo {
             kind,
-            owner: Uid::new(meta.uid()),
+            owner: Uid::new(self.owners.owner(meta.uid())),
             mode: meta.mode(),
         })
     }

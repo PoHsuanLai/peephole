@@ -69,3 +69,15 @@ Departures from the plan, standing facts and open items. An entry names the cond
 5. **`Pin::AtConnect` on the bus depends on the bus daemon offering `ProcessFD`** (dbus-daemon 1.14.10
    and dbus-broker are believed to). Unverified; without it the pin is `Reopened`.
 6. **No `Cargo.lock` is committed** by the first lane; the gate session generates it.
+
+## v0.1.10 (2026-10-25): owners inside a user service's namespace
+
+- A user service with ProtectSystem/ProtectHome/PrivateTmp runs with PrivateUsers=self: only the person's uid is mapped, and
+  root's files show as the overflow uid (65534). Every image, directory and table file then read as Writable(Owner(65534)), so
+  accountd and inferd could prove no peer Full and refused Settings on the real login (found by the agent session).
+- `RealProc` now reads `self/uid_map` and `sys/kernel/overflowuid`: where real root is not mapped and the overflow uid is not a
+  mapped account, an owner of the overflow uid is taken as root's (`OwnerView`). The group and other write bits still count. The
+  person's own uid stays mapped, so their files stay theirs, and the threat of the person's own session forging is still met.
+  Another local account's files would also read as root's inside such a namespace; on this desktop no other account owns a
+  path on the proof ladder.
+- Checked under `unshare --user --map-current-user`: `/etc`, `/usr/bin/ls` and the desktop table are root-only.
